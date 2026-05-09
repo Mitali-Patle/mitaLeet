@@ -1,16 +1,42 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
 import { NotificationType } from '@prisma/client';
+import * as admin from 'firebase-admin';
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
+  private fcmEnabled = false;
 
   constructor(
     private prisma: PrismaService,
     private events: EventsGateway,
   ) {}
+
+  onModuleInit() {
+    const projectId = process.env.FIREBASE_PROJECT_ID;
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+
+    if (!projectId || !privateKey || !clientEmail) {
+      this.logger.warn('Firebase env vars not set — FCM push disabled');
+      return;
+    }
+
+    if (admin.apps.length === 0) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          privateKey: privateKey.replace(/\\n/g, '\n'),
+          clientEmail,
+        }),
+      });
+    }
+
+    this.fcmEnabled = true;
+    this.logger.log('Firebase Admin initialized — FCM push enabled');
+  }
 
   /** Create a notification and push via WebSocket + FCM. */
   async create(
@@ -24,11 +50,11 @@ export class NotificationsService {
       data: { userId, type, title, body, data: (data ?? undefined) as any },
     });
 
-    // Realtime push via WebSocket
     this.events.emitToUser(userId, WS_EVENTS.NOTIFICATION, notification);
 
-    // TODO: Send FCM push notification to device tokens
-    // await this.sendPushNotification(userId, title, body, data);
+    if (this.fcmEnabled) {
+      await this.sendPushNotification(userId, title, body, data);
+    }
 
     return notification;
   }
@@ -65,20 +91,40 @@ export class NotificationsService {
     });
   }
 
-  // ── FCM Push (placeholder) ─────────────────────────────────────────
+  private async sendPushNotification(
+    userId: string,
+    title: string,
+    body: string,
+    data?: Record<string, unknown>,
+  ) {
+    const tokens = await this.prisma.deviceToken.findMany({
+      where: { userId },
+      select: { token: true },
+    });
+    if (tokens.length === 0) return;
 
-  // private async sendPushNotification(
-  //   userId: string,
-  //   title: string,
-  //   body: string,
-  //   data?: Record<string, unknown>,
-  // ) {
-  //   const tokens = await this.prisma.deviceToken.findMany({
-  //     where: { userId },
-  //     select: { token: true },
-  //   });
-  //   if (tokens.length === 0) return;
-  //
-  //   // Use firebase-admin messaging.sendEachForMulticast(...)
-  // }
+    const stringData: Record<string, string> = {};
+    if (data) {
+      for (const [k, v] of Object.entries(data)) {
+        stringData[k] = String(v);
+      }
+    }
+
+    try {
+      const result = await admin.messaging().sendEachForMulticast({
+        tokens: tokens.map((t) => t.token),
+        notification: { title, body },
+        data: stringData,
+        android: { priority: 'high' },
+        apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+      });
+
+      const failed = result.responses.filter((r) => !r.success);
+      if (failed.length > 0) {
+        this.logger.warn(`FCM: ${failed.length}/${tokens.length} messages failed`);
+      }
+    } catch (err) {
+      this.logger.error(`FCM sendEachForMulticast error: ${err}`);
+    }
+  }
 }

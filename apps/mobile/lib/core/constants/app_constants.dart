@@ -3,7 +3,7 @@ abstract final class AppConstants {
   static const String appName = 'mitaLeet';
 
   // ── API ────────────────────────────────────────────────────────────
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'http://localhost:3000/api/v1';
   static const String wsUrl = 'http://localhost:3000';
 
   // ── Storage keys ───────────────────────────────────────────────────

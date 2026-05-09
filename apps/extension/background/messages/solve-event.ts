@@ -55,7 +55,7 @@ export const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
   switch (event.type) {
     case 'PROBLEM_OPENED':
       // Start a solve session on the backend
-      await apiPost('/leetcode/sessions', {
+      await apiPost('/api/v1/leetcode/sessions', {
         problemSlug: event.problemSlug,
         language: event.language ?? 'unknown',
         startedAt: new Date(event.timestamp).toISOString(),
@@ -68,7 +68,7 @@ export const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
     case 'PROBLEM_SOLVED':
       // Complete solve session
-      await apiPost('/extension/solve', {
+      await apiPost('/api/v1/leetcode/extension-solve', {
         problemSlug: event.problemSlug,
         language: event.language ?? 'unknown',
         durationMs: event.durationMs ?? 0,

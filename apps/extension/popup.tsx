@@ -27,7 +27,7 @@ function Popup() {
     if (!token.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/profile`, {
+      const res = await fetch(`${API_BASE}/api/v1/users/me`, {
         headers: { Authorization: `Bearer ${token.trim()}` },
       });
       if (!res.ok) throw new Error('Invalid token');

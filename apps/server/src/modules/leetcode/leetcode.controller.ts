@@ -48,6 +48,23 @@ export class LeetCodeController {
     return this.leetcodeService.getSyncHistory(user.sub, limit);
   }
 
+  // ── Extension real-time solve ──────────────────────────────────────
+
+  @Post('extension-solve')
+  extensionSolve(
+    @CurrentUser() user: JwtPayload,
+    @Body('problemSlug') problemSlug: string,
+    @Body('language') language: string,
+    @Body('solvedAt') solvedAt: string,
+  ) {
+    return this.solvesService.extensionSolve(
+      user.sub,
+      problemSlug,
+      language ?? 'unknown',
+      solvedAt ? new Date(solvedAt) : new Date(),
+    );
+  }
+
   // ── Solves ─────────────────────────────────────────────────────
 
   @Get('solves')
