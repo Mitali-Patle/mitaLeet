@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.dart_tool/
+.packages
+
+# Build
+build/
+dist/
+.next/
+*.js.map
+
+# Environment — never commit real secrets
+.env
+.env.local
+.env.*.local
+# Keep the example file (no real values)
+!.env.example
+
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# Flutter pubspec lock (regenerated per machine)
+apps/mobile/pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flutter
+*.iml
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# Generated
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Prisma
+apps/server/prisma/migrations/
+
+# Plasmo
+apps/extension/build/
+apps/extension/.plasmo/

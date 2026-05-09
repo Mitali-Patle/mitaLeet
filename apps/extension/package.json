@@ -1,0 +1,32 @@
+{
+  "name": "mitaleet-extension",
+  "displayName": "mitaLeet",
+  "version": "0.1.0",
+  "description": "mitaLeet browser extension — realtime solve tracking for your coding circle.",
+  "author": "mitaLeet",
+  "scripts": {
+    "dev": "plasmo dev",
+    "build": "plasmo build",
+    "package": "plasmo package"
+  },
+  "dependencies": {
+    "plasmo": "^0.90.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "socket.io-client": "^4.7.4"
+  },
+  "devDependencies": {
+    "@plasmohq/messaging": "^0.6.2",
+    "@types/chrome": "^0.0.268",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.4.0"
+  },
+  "manifest": {
+    "permissions": ["storage", "activeTab", "scripting"],
+    "host_permissions": ["https://leetcode.com/*"],
+    "content_security_policy": {
+      "extension_pages": "script-src 'self'; object-src 'self'"
+    }
+  }
+}

@@ -1,0 +1,547 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ══════════════════════════════════════════════════════════
+// ENUMS
+// ══════════════════════════════════════════════════════════
+
+enum UserStatus {
+  ONLINE
+  SOLVING
+  IDLE
+  OFFLINE
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ActivityType {
+  SOLVE
+  STREAK_EXTENDED
+  STREAK_BROKEN
+  CHALLENGE_JOINED
+  CHALLENGE_COMPLETED
+  GROUP_JOINED
+  RANK_CHANGED
+  XP_GAINED
+  LEVEL_UP
+  FIRST_SOLVE_OF_DAY
+  HARD_PROBLEM_SOLVED
+  DAILY_GOAL_COMPLETED
+  SYNC_COMPLETED
+  ACHIEVEMENT_UNLOCKED
+}
+
+enum Rank {
+  INITIATE
+  OPERATOR
+  SPECIALIST
+  ELITE
+  TITAN
+  APEX
+}
+
+enum AchievementType {
+  STREAK_MILESTONE
+  SOLVE_MILESTONE
+  HARD_PROBLEM
+  CONSISTENCY
+  CHALLENGE_WIN
+  FIRST_SOLVE
+  XP_MILESTONE
+  LEVEL_MILESTONE
+}
+
+enum NotificationType {
+  STREAK_REMINDER
+  SOLVE_NOTIFICATION
+  GROUP_INVITE
+  GROUP_EVENT
+  LEADERBOARD_UPDATE
+  CHALLENGE_UPDATE
+  FRIEND_REQUEST
+  ACHIEVEMENT
+  SYNC_COMPLETED
+}
+
+enum SyncStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum RaceStatus {
+  WAITING
+  COUNTDOWN
+  ACTIVE
+  FINISHED
+  CANCELLED
+}
+
+// ══════════════════════════════════════════════════════════
+// USER
+// ══════════════════════════════════════════════════════════
+
+model User {
+  id              String     @id @default(uuid())
+  email           String     @unique
+  displayName     String
+  avatarUrl       String?
+  googleId        String     @unique
+  status          UserStatus @default(OFFLINE)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  profile         UserProfile?
+  sessions        UserSession[]
+  deviceTokens    DeviceToken[]
+  streak          Streak?
+  solves          Solve[]
+  groupMembers    GroupMember[]
+  sentInvites     GroupInvite[]      @relation("SentInvites")
+  receivedInvites GroupInvite[]      @relation("ReceivedInvites")
+  activities      Activity[]
+  notifications   Notification[]
+  solveSessions   SolveSession[]
+  dailySolves     DailySolve[]
+  syncJobs        SyncJob[]
+  achievements    UserAchievement[]
+  challengeParticipants ChallengeParticipant[]
+  raceParticipants      RaceParticipant[]
+  createdRaces          RaceRoom[]
+
+  sentFriendRequests     FriendRequest[] @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[] @relation("ReceivedFriendRequests")
+  friendshipsA           Friendship[]    @relation("FriendA")
+  friendshipsB           Friendship[]    @relation("FriendB")
+
+  @@index([email])
+  @@index([googleId])
+  @@index([status])
+}
+
+// ══════════════════════════════════════════════════════════
+// USER PROFILE
+// ══════════════════════════════════════════════════════════
+
+model UserProfile {
+  id                 String   @id @default(uuid())
+  username           String   @unique
+  leetcodeUsername    String?  @unique
+  leetcodeVerified   Boolean  @default(false)
+  leetcodeLinkedAt   DateTime?
+  lastSyncAt         DateTime?
+  bio                String?
+  xp                 Int      @default(0)
+  level              Int      @default(1)
+  rank               Rank     @default(INITIATE)
+  totalSolves        Int      @default(0)
+  easySolves         Int      @default(0)
+  mediumSolves       Int      @default(0)
+  hardSolves         Int      @default(0)
+  globalRank         Int?
+  dailyGoal          Int      @default(1)
+  timezone           String   @default("UTC")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([username])
+  @@index([leetcodeUsername])
+  @@index([xp])
+  @@index([rank])
+  @@index([globalRank])
+}
+
+// ══════════════════════════════════════════════════════════
+// SESSIONS & DEVICES
+// ══════════════════════════════════════════════════════════
+
+model UserSession {
+  id           String   @id @default(uuid())
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([refreshToken])
+  @@index([expiresAt])
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  platform  String   // "android" | "ios" | "web"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+// ══════════════════════════════════════════════════════════
+// FRIENDSHIPS
+// ══════════════════════════════════════════════════════════
+
+model FriendRequest {
+  id        String              @id @default(uuid())
+  status    FriendRequestStatus @default(PENDING)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  senderId   String
+  receiverId String
+  sender     User @relation("SentFriendRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User @relation("ReceivedFriendRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+}
+
+model Friendship {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userAId   String
+  userBId   String
+  userA     User @relation("FriendA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB     User @relation("FriendB", fields: [userBId], references: [id], onDelete: Cascade)
+
+  @@unique([userAId, userBId])
+  @@index([userAId])
+  @@index([userBId])
+}
+
+// ══════════════════════════════════════════════════════════
+// GROUPS (SQUADS / CIRCLES)
+// ══════════════════════════════════════════════════════════
+
+model Group {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  description String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     GroupMember[]
+  invites     GroupInvite[]
+  challenges  Challenge[]
+
+  @@index([code])
+}
+
+model GroupMember {
+  id       String    @id @default(uuid())
+  role     GroupRole  @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  userId   String
+  groupId  String
+  user     User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group    Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+  @@index([groupId])
+}
+
+model GroupInvite {
+  id        String       @id @default(uuid())
+  status    InviteStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  senderId   String
+  receiverId String
+  groupId    String
+  sender     User  @relation("SentInvites", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User  @relation("ReceivedInvites", fields: [receiverId], references: [id], onDelete: Cascade)
+  group      Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([receiverId, groupId])
+  @@index([receiverId, status])
+}
+
+// ══════════════════════════════════════════════════════════
+// PROBLEMS (NORMALIZED CATALOG)
+// ══════════════════════════════════════════════════════════
+
+model Problem {
+  id             String     @id @default(uuid())
+  slug           String     @unique
+  title          String
+  difficulty     Difficulty
+  acceptanceRate Float?
+  isPremium      Boolean    @default(false)
+  topicTags      String[]   // ["array", "hash-table", "dynamic-programming"]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  solves         Solve[]
+  solveSessions  SolveSession[]
+
+  @@index([slug])
+  @@index([difficulty])
+}
+
+// ══════════════════════════════════════════════════════════
+// SOLVES & STREAKS
+// ══════════════════════════════════════════════════════════
+
+model Solve {
+  id            String     @id @default(uuid())
+  problemSlug   String
+  problemName   String?
+  difficulty    Difficulty
+  language      String
+  runtime       Int?
+  memory        Float?
+  solvedAt      DateTime   @default(now())
+  source        String     @default("sync")  // "sync" | "extension" | "manual"
+
+  userId        String
+  problemId     String?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem       Problem? @relation(fields: [problemId], references: [id])
+
+  @@unique([userId, problemSlug, solvedAt])
+  @@index([userId, solvedAt])
+  @@index([userId, difficulty])
+  @@index([problemSlug])
+}
+
+model Streak {
+  id              String    @id @default(uuid())
+  currentStreak   Int       @default(0)
+  longestStreak   Int       @default(0)
+  lastSolveDate   DateTime?
+  streakFreezes   Int       @default(0)    // future: earned freeze days
+  usedFreezes     Int       @default(0)
+  updatedAt       DateTime  @updatedAt
+
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DailySolve {
+  id          String   @id @default(uuid())
+  date        DateTime @db.Date
+  solveCount  Int      @default(0)
+  easyCount   Int      @default(0)
+  mediumCount Int      @default(0)
+  hardCount   Int      @default(0)
+  xpEarned    Int      @default(0)
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model SolveSession {
+  id          String    @id @default(uuid())
+  status      String    @default("active")  // "active" | "completed" | "abandoned"
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  durationMs  Int?
+
+  userId      String
+  problemId   String?
+  problemSlug String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem     Problem? @relation(fields: [problemId], references: [id])
+
+  @@index([userId, status])
+  @@index([userId, startedAt])
+}
+
+// ══════════════════════════════════════════════════════════
+// SYNC JOBS
+// ══════════════════════════════════════════════════════════
+
+model SyncJob {
+  id          String     @id @default(uuid())
+  status      SyncStatus @default(PENDING)
+  type        String     @default("leetcode_sync") // "leetcode_sync" | "full_refresh"
+  result      Json?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime   @default(now())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model Challenge {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?
+  problemSlug  String
+  type         String   @default("squad")  // "daily" | "squad" | "weekly"
+  xpReward     Int      @default(50)
+  startsAt     DateTime
+  endsAt       DateTime
+  createdAt    DateTime @default(now())
+
+  groupId      String
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  participants ChallengeParticipant[]
+
+  @@index([groupId])
+  @@index([startsAt, endsAt])
+}
+
+model ChallengeParticipant {
+  id          String    @id @default(uuid())
+  joinedAt    DateTime  @default(now())
+  completedAt DateTime?
+  xpAwarded   Int       @default(0)
+  rank        Int?
+
+  userId      String
+  challengeId String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+  @@index([challengeId, completedAt])
+}
+
+// ══════════════════════════════════════════════════════════
+// ACHIEVEMENTS
+// ══════════════════════════════════════════════════════════
+
+model UserAchievement {
+  id            String          @id @default(uuid())
+  type          AchievementType
+  key           String          // e.g. "streak_7", "solves_100"
+  title         String
+  description   String
+  xpReward      Int             @default(25)
+  unlockedAt    DateTime        @default(now())
+
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId, unlockedAt])
+}
+
+// ══════════════════════════════════════════════════════════
+// ACTIVITY & NOTIFICATIONS
+// ══════════════════════════════════════════════════════════
+
+model Activity {
+  id        String       @id @default(uuid())
+  type      ActivityType
+  data      Json?
+  createdAt DateTime     @default(now())
+
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  userId    String
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read, createdAt])
+  @@index([type])
+}
+
+// ══════════════════════════════════════════════════════════
+// RACE ROOMS
+// ══════════════════════════════════════════════════════════
+
+model RaceRoom {
+  id          String     @id @default(uuid())
+  code        String     @unique  // 6-char join code
+  status      RaceStatus @default(WAITING)
+  problemSlug String
+  problemName String?
+  maxPlayers  Int        @default(4)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime   @default(now())
+
+  creatorId    String
+  creator      User             @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  participants RaceParticipant[]
+
+  @@index([code])
+  @@index([status])
+  @@index([creatorId])
+}
+
+model RaceParticipant {
+  id          String    @id @default(uuid())
+  status      String    @default("WAITING")  // WAITING|THINKING|CODING|TESTING|ACCEPTED
+  completedAt DateTime?
+  durationMs  Int?
+  rank        Int?
+  joinedAt    DateTime  @default(now())
+
+  userId    String
+  roomId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      RaceRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@index([roomId, status])
+}
