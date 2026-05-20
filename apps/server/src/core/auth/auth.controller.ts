@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { GoogleAuthDto, RefreshTokenDto, LogoutDto } from './dto/auth.dto';
@@ -22,6 +23,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async googleAuth(@Body() dto: GoogleAuthDto) {
     return this.authService.googleAuth(dto);
+  }
+
+  @Public()
+  @Post('dev-login')
+  @HttpCode(HttpStatus.OK)
+  async devLogin(@Body('username') username: string) {
+    if (!username) {
+      throw new BadRequestException('Username is required');
+    }
+    return this.authService.devLogin(username);
   }
 
   @Public()

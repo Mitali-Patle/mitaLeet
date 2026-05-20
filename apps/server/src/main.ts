@@ -14,12 +14,37 @@ async function bootstrap() {
   // Security
   app.use(helmet());
 
-  const corsOrigins = config
-    .get<string>('CORS_ORIGINS', 'http://localhost:3000')
-    .split(',')
-    .map((o) => o.trim());
+  const isDev = config.get<string>('NODE_ENV', 'development') !== 'production';
 
-  app.enableCors({ origin: corsOrigins, credentials: true });
+  app.enableCors({
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      if (isDev) {
+        // Allow any localhost / 127.0.0.1 origin in development
+        if (
+          origin.startsWith('http://localhost') ||
+          origin.startsWith('http://127.0.0.1') ||
+          origin === 'capacitor://localhost' ||
+          origin === 'ionic://localhost'
+        ) {
+          return callback(null, true);
+        }
+      } else {
+        // Production: use explicit allowlist from env
+        const allowed = config
+          .get<string>('CORS_ORIGINS', '')
+          .split(',')
+          .map((o) => o.trim());
+        if (allowed.includes(origin)) {
+          return callback(null, true);
+        }
+      }
+      return callback(new Error(`CORS: origin ${origin} not allowed`), false);
+    },
+    credentials: true,
+  });
 
   // Health check for Railway / load balancers
   const httpAdapter = app.getHttpAdapter();

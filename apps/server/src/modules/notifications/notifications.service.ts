@@ -19,23 +19,33 @@ export class NotificationsService implements OnModuleInit {
     const privateKey = process.env.FIREBASE_PRIVATE_KEY;
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
 
-    if (!projectId || !privateKey || !clientEmail) {
+    if (
+      !projectId ||
+      !privateKey ||
+      !clientEmail ||
+      projectId.startsWith('your-') ||
+      clientEmail.includes('your-project')
+    ) {
       this.logger.warn('Firebase env vars not set — FCM push disabled');
       return;
     }
 
-    if (admin.apps.length === 0) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId,
-          privateKey: privateKey.replace(/\\n/g, '\n'),
-          clientEmail,
-        }),
-      });
-    }
+    try {
+      if (admin.apps.length === 0) {
+        admin.initializeApp({
+          credential: admin.credential.cert({
+            projectId,
+            privateKey: privateKey.replace(/\\n/g, '\n'),
+            clientEmail,
+          }),
+        });
+      }
 
-    this.fcmEnabled = true;
-    this.logger.log('Firebase Admin initialized — FCM push enabled');
+      this.fcmEnabled = true;
+      this.logger.log('Firebase Admin initialized — FCM push enabled');
+    } catch (err) {
+      this.logger.warn(`Firebase init failed — FCM push disabled: ${err}`);
+    }
   }
 
   /** Create a notification and push via WebSocket + FCM. */

@@ -126,6 +126,59 @@ export class AuthService {
     });
   }
 
+  /**
+   * Dev login — bypass Google OAuth in development.
+   */
+  async devLogin(username: string): Promise<{
+    tokens: TokenPair;
+    user: { id: string; email: string; displayName: string; isNewUser: boolean };
+  }> {
+    if (this.config.get<string>('NODE_ENV') === 'production') {
+      throw new UnauthorizedException('Dev login not allowed in production');
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    const googleId = `google-${cleanUsername}`;
+
+    let isNewUser = false;
+    let user = await this.prisma.user.findUnique({
+      where: { googleId },
+    });
+
+    if (!user) {
+      isNewUser = true;
+      user = await this.prisma.user.create({
+        data: {
+          email: `${cleanUsername}@example.com`,
+          displayName: cleanUsername,
+          googleId,
+          profile: {
+            create: {
+              username: cleanUsername,
+            },
+          },
+          streak: {
+            create: {},
+          },
+        },
+      });
+      this.logger.log(`New dev user created: ${user.id}`);
+    }
+
+    // Create session + tokens
+    const tokens = await this.createSession(user.id, user.email);
+
+    return {
+      tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        isNewUser,
+      },
+    };
+  }
+
   // ── Private helpers ────────────────────────────────────────────────
 
   private async createSession(
