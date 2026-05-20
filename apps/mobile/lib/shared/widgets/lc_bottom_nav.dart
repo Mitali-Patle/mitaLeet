@@ -18,13 +18,13 @@ class LCScaffoldWithNav extends StatelessWidget {
     final location = GoRouterState.of(context).matchedLocation;
     if (location.startsWith('/leaderboard')) return 1;
     if (location.startsWith('/activity')) return 2;
-    if (location.startsWith('/squad')) return 3;
+    if (location.startsWith('/coding')) return 3;
     if (location.startsWith('/profile')) return 4;
     return 0;
   }
 
   void _onTap(BuildContext context, int index) {
-    const routes = ['/', '/leaderboard', '/activity', '/squad', '/profile'];
+    const routes = ['/', '/leaderboard', '/activity', '/coding', '/profile'];
     context.go(routes[index]);
   }
 
@@ -69,8 +69,8 @@ class LCScaffoldWithNav extends StatelessWidget {
                   onTap: () => _onTap(context, 2),
                 ),
                 _NavItem(
-                  icon: PhosphorIconsBold.usersThree,
-                  label: 'SQUAD',
+                  icon: PhosphorIconsBold.code,
+                  label: 'CODING',
                   isSelected: currentIndex == 3,
                   onTap: () => _onTap(context, 3),
                 ),

@@ -3,6 +3,7 @@
 abstract final class ApiEndpoints {
   // ── Auth ────────────────────────────────────────────────────────────
   static const String authGoogle = '/auth/google';
+  static const String authDevLogin = '/auth/dev-login';
   static const String authRefresh = '/auth/refresh';
   static const String authLogout = '/auth/logout';
   static const String authLogoutAll = '/auth/logout-all';

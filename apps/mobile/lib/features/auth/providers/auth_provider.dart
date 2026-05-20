@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/storage/secure_storage.dart';
@@ -61,6 +62,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Check persisted auth on app launch.
   Future<void> checkAuth() async {
     state = state.copyWith(isLoading: true);
+    try {
+      // Add a 3-second timeout to prevent infinite hanging (e.g., if SecureStorage fails on web)
+      await _performAuthCheck().timeout(const Duration(seconds: 3));
+    } catch (e) {
+      debugPrint('[Auth] checkAuth timeout or error: $e');
+      state = const AuthState();
+    }
+  }
+
+  Future<void> _performAuthCheck() async {
     try {
       final token = await storage.getAccessToken();
       final userId = await storage.getUserId();
@@ -153,6 +164,41 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// DEV ONLY: bypass auth for local UI testing.
+  /// Calls backend /auth/dev-login and persists tokens.
+  Future<void> devBypass() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      // Use a default dev username; customize if needed.
+      final response = await apiClient.post(
+        ApiEndpoints.authDevLogin,
+        data: {'username': 'mitali'},
+      );
+      final data = response.data['data'];
+      final tokens = data['tokens'];
+      final user = data['user'];
+
+      await storage.setAccessToken(tokens['accessToken']);
+      await storage.setRefreshToken(tokens['refreshToken']);
+      await storage.setUserId(user['id']);
+
+      state = AuthState(
+        isAuthenticated: true,
+        userId: user['id'],
+        email: user['email'],
+        displayName: user['displayName'],
+      );
+
+      await socketService.connect();
+    } catch (e) {
+      debugPrint('[Auth] devBypass failed: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Dev login failed: ${e.toString().replaceAll('Exception:', '').trim()}',
+      );
+    }
+  }
+
   /// Sign out and clear all persisted data.
   Future<void> signOut() async {
     try {
@@ -192,7 +238,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Re-check auth with new token
       await checkAuth();
     } catch (_) {
-      await storage.clearAll();
+      try {
+        await storage.clearAll();
+      } catch (_) {
+        // Ignore if clearAll also fails (e.g., MissingPluginException on web)
+      }
       state = const AuthState();
     }
   }

@@ -7,7 +7,7 @@ import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../features/splash/presentation/screens/splash_screen.dart';
 import '../features/home/presentation/screens/home_screen.dart';
-import '../features/leaderboard/presentation/screens/leaderboard_screen.dart';
+import '../features/gamification/presentation/screens/leaderboard_screen.dart';
 import '../features/activity/presentation/screens/activity_screen.dart';
 import '../features/leetcode/presentation/screens/coding_activity_screen.dart';
 import '../features/circles/presentation/screens/circles_screen.dart';
@@ -18,14 +18,24 @@ import 'route_names.dart';
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Listenable that fires when auth state changes, triggering
+/// GoRouter redirect re-evaluation without recreating the router.
+class _AuthChangeNotifier extends ChangeNotifier {
+  _AuthChangeNotifier(Ref ref) {
+    ref.listen(authStateProvider, (_, __) => notifyListeners());
+  }
+}
+
 /// Application router with auth-guarded navigation.
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final authNotifier = _AuthChangeNotifier(ref);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
+    refreshListenable: authNotifier,
     redirect: (context, state) {
+      final authState = ref.read(authStateProvider);
       final isLoggedIn = authState.isAuthenticated;
       final isNewUser = authState.isNewUser;
       final isSplash = state.matchedLocation == '/splash';
@@ -95,14 +105,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: '/squad',
-            name: RouteNames.squad,
-            pageBuilder: (context, state) => CustomTransitionPage(
-              child: const CirclesScreen(),
-              transitionsBuilder: _fadeTransition,
-            ),
-          ),
-          GoRoute(
             path: '/coding',
             name: RouteNames.coding,
             pageBuilder: (context, state) => CustomTransitionPage(
@@ -119,6 +121,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
         ],
+      ),
+
+      // ── Squad — accessible via push from HomeScreen ────────────────
+      GoRoute(
+        path: '/squad',
+        name: RouteNames.squad,
+        builder: (context, state) => const CirclesScreen(),
       ),
     ],
   );

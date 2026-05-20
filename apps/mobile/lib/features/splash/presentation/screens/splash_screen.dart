@@ -57,6 +57,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _startSequence() async {
+    // Safety timer — if anything hangs, force navigate to login
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) {
+        debugPrint('[Splash] Safety timer fired — forcing /login');
+        context.go('/login');
+      }
+    });
+
     await Future.delayed(const Duration(milliseconds: 200));
     _logoController.forward();
     await Future.delayed(const Duration(milliseconds: 400));
@@ -65,9 +73,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Check auth and navigate
     await Future.delayed(const Duration(milliseconds: 1200));
     if (!mounted) return;
-    await ref.read(authStateProvider.notifier).checkAuth();
+
+    bool isAuth = false;
+    try {
+      await ref.read(authStateProvider.notifier).checkAuth();
+      if (mounted) {
+        isAuth = ref.read(authStateProvider).isAuthenticated;
+      }
+    } catch (e) {
+      debugPrint('[Splash] checkAuth error: $e');
+    }
+
     if (!mounted) return;
-    final isAuth = ref.read(authStateProvider).isAuthenticated;
     context.go(isAuth ? '/' : '/login');
   }
 

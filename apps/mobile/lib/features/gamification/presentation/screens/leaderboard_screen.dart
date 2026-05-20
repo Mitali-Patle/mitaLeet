@@ -60,47 +60,48 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
       ),
       body: Column(
         children: [
-          // Period filter (only for global)
-          TabBarView(
-            controller: _tab,
-            children: [
-              // Squad
-              _LeaderboardList(
-                entries: state.groupLeaderboard,
-                isLoading: state.isLoading,
-                emptyMessage: 'NO SQUAD MEMBERS YET',
-                onRefresh: () => ref.read(gamificationProvider.notifier)
-                    .loadGroupLeaderboard(widget.groupId ?? ''),
-              ),
-              // Friends
-              _LeaderboardList(
-                entries: state.friendsLeaderboard,
-                isLoading: state.isLoading,
-                emptyMessage: 'NO FRIENDS YET',
-                onRefresh: () => ref.read(gamificationProvider.notifier).loadFriendsLeaderboard(),
-              ),
-              // Global + period filter
-              Column(
-                children: [
-                  _PeriodFilter(
-                    selected: _period,
-                    onSelect: (p) {
-                      setState(() => _period = p);
-                      ref.read(gamificationProvider.notifier).loadGlobalLeaderboard(period: p);
-                    },
-                  ),
-                  Expanded(
-                    child: _LeaderboardList(
-                      entries: state.globalLeaderboard,
-                      isLoading: state.isLoading,
-                      emptyMessage: 'NO GLOBAL DATA',
-                      onRefresh: () => ref.read(gamificationProvider.notifier)
-                          .loadGlobalLeaderboard(period: _period),
+          Expanded(
+            child: TabBarView(
+              controller: _tab,
+              children: [
+                // Squad
+                _LeaderboardList(
+                  entries: state.groupLeaderboard,
+                  isLoading: state.isLoading,
+                  emptyMessage: 'NO SQUAD MEMBERS YET',
+                  onRefresh: () => ref.read(gamificationProvider.notifier)
+                      .loadGroupLeaderboard(widget.groupId ?? ''),
+                ),
+                // Friends
+                _LeaderboardList(
+                  entries: state.friendsLeaderboard,
+                  isLoading: state.isLoading,
+                  emptyMessage: 'NO FRIENDS YET',
+                  onRefresh: () => ref.read(gamificationProvider.notifier).loadFriendsLeaderboard(),
+                ),
+                // Global + period filter
+                Column(
+                  children: [
+                    _PeriodFilter(
+                      selected: _period,
+                      onSelect: (p) {
+                        setState(() => _period = p);
+                        ref.read(gamificationProvider.notifier).loadGlobalLeaderboard(period: p);
+                      },
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    Expanded(
+                      child: _LeaderboardList(
+                        entries: state.globalLeaderboard,
+                        isLoading: state.isLoading,
+                        emptyMessage: 'NO GLOBAL DATA',
+                        onRefresh: () => ref.read(gamificationProvider.notifier)
+                            .loadGlobalLeaderboard(period: _period),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

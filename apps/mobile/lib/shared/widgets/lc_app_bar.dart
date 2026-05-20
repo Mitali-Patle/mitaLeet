@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
+import '../../core/theme/app_typography.dart';
 
 /// Custom app bar with industrial styling.
 ///
-/// Flat, borderless, with optional leading action and
-/// trailing widgets.
+/// Wraps Flutter's native [AppBar] so the [Scaffold] computes the
+/// intrinsic height correctly (no manual preferredSize tricks needed).
 class LCAppBar extends StatelessWidget implements PreferredSizeWidget {
   const LCAppBar({
     super.key,
@@ -13,6 +14,7 @@ class LCAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.leading,
     this.actions,
     this.showBorder = true,
+    this.bottom,
   });
 
   final String title;
@@ -20,48 +22,55 @@ class LCAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final bool showBorder;
 
+  /// Optional widget displayed below the title row (e.g. a [TabBar]).
+  final PreferredSizeWidget? bottom;
+
   @override
-  Size get preferredSize => const Size.fromHeight(56);
+  Size get preferredSize => Size.fromHeight(
+        kToolbarHeight +
+            (showBorder ? 0.5 : 0) +
+            (bottom?.preferredSize.height ?? 0),
+      );
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: showBorder
-            ? const Border(
-                bottom: BorderSide(
-                  color: AppColors.surfaceBorder,
-                  width: 0.5,
-                ),
-              )
-            : null,
+    return AppBar(
+      backgroundColor: AppColors.surface,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      automaticallyImplyLeading: false,
+      titleSpacing: AppSpacing.screenPadding,
+      leading: leading,
+      leadingWidth: leading != null ? 48 : 0,
+      title: Text(
+        title.toUpperCase(),
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              letterSpacing: 1.5,
+              color: AppColors.onSurface,
+            ),
       ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.screenPadding,
-          ),
-          child: Row(
-            children: [
-              if (leading != null) ...[
-                leading!,
-                const SizedBox(width: AppSpacing.md),
-              ],
-              Text(
-                title.toUpperCase(),
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      letterSpacing: 1.5,
-                      color: AppColors.onSurface,
-                    ),
+      actions: [
+        if (actions != null) ...actions!,
+        const SizedBox(width: AppSpacing.sm),
+      ],
+      bottom: showBorder
+          ? PreferredSize(
+              preferredSize: Size.fromHeight(bottom?.preferredSize.height ?? 0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Divider(
+                    height: 0.5,
+                    thickness: 0.5,
+                    color: AppColors.surfaceBorder,
+                  ),
+                  if (bottom != null) bottom!,
+                ],
               ),
-              const Spacer(),
-              if (actions != null) ...actions!,
-            ],
-          ),
-        ),
-      ),
+            )
+          : bottom,
     );
   }
 }

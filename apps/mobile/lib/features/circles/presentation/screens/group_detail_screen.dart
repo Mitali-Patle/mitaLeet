@@ -125,7 +125,7 @@ class GroupDetailScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: AppSpacing.lg),
                         _StatusChip(
-                          icon: PhosphorIconsBold.circleWavyCheck,
+                          icon: PhosphorIconsBold.checkCircle,
                           value: '$onlineCount',
                           label: 'ONLINE',
                           valueColor: AppColors.statusOnline,
