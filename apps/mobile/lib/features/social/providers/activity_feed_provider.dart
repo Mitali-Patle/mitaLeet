@@ -1,3 +1,16 @@
+// Activity Feed Provider — features/social (live/realtime, cursor-paged feed)
+//
+// PURPOSE: Powers LiveActivityScreen — the realtime activity feed with
+//   infinite scroll, `hasMore` pagination, and a `refresh()` method.
+// MODEL: ActivityEvent — includes `avatarUrl`, raw `data` map, and
+//   cursor-based loading (passes last event id as cursor).
+//
+// DISTINCT FROM: features/activity/providers/activity_feed_provider.dart,
+//   which powers ActivityScreen + HomeScreen and uses ActivityItem (with
+//   filter chips and `activeFilter` state). Both files intentionally coexist
+//   — they serve different screens with different data shapes and interaction
+//   patterns.
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';

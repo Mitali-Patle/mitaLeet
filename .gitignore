@@ -19,8 +19,6 @@ dist/
 # TypeScript incremental build cache
 *.tsbuildinfo
 
-# Flutter pubspec lock (regenerated per machine)
-apps/mobile/pubspec.lock
 
 # IDE
 .idea/
@@ -51,3 +49,5 @@ apps/server/prisma/migrations/
 # Plasmo
 apps/extension/build/
 apps/extension/.plasmo/
+
+.claude/

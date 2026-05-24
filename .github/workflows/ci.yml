@@ -32,7 +32,7 @@ jobs:
         run: npm run build
 
       - name: Lint
-        run: npm run lint || true
+        run: npm run lint
 
   extension:
     name: Extension — Build
@@ -66,7 +66,7 @@ jobs:
 
       - name: Analyze
         working-directory: apps/mobile
-        run: flutter analyze --no-fatal-infos || true
+        run: flutter analyze --no-fatal-infos
 
       - name: Build APK (debug)
         working-directory: apps/mobile

@@ -1,3 +1,15 @@
+// Activity Feed Provider — features/activity (filterable, batch-loaded feed)
+//
+// PURPOSE: Powers ActivityScreen (the tabbed activity feed with ALL/SOLVES/
+//   STREAKS/CHALLENGES filters) and HomeScreen (homepage activity summary).
+// MODEL: ActivityItem — includes a parsed `action`/`detail` pair and a
+//   `filtered` getter keyed on `activeFilter`.
+//
+// DISTINCT FROM: features/social/providers/activity_feed_provider.dart, which
+//   powers LiveActivityScreen and uses ActivityEvent (cursor-paged, hasMore).
+//   Both files intentionally coexist — they serve different screens with
+//   different data shapes and interaction patterns.
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
