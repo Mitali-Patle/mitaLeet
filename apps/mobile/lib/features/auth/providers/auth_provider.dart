@@ -59,12 +59,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final ApiClient apiClient;
   final SocketService socketService;
 
+  // Single GoogleSignIn instance — avoids creating duplicates on rapid taps.
+  // serverClientId is the OAuth 2.0 Web Client ID (public, not a secret —
+  // it appears in OAuth redirect URLs and is safe to include in source).
+  final _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId: '271726528316-k1aqb21aebe1nddshhnc79hiqdn2afft.apps.googleusercontent.com',
+  );
   /// Check persisted auth on app launch.
   Future<void> checkAuth() async {
     state = state.copyWith(isLoading: true);
     try {
-      // Add a 3-second timeout to prevent infinite hanging (e.g., if SecureStorage fails on web)
-      await _performAuthCheck().timeout(const Duration(seconds: 3));
+      // 10-second timeout as a safety net (e.g., catastrophic network hang).
+      // SecureStorage PlatformException on web is handled inside _performAuthCheck.
+      await _performAuthCheck().timeout(const Duration(seconds: 10));
     } catch (e) {
       debugPrint('[Auth] checkAuth timeout or error: $e');
       state = const AuthState();
@@ -72,10 +80,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _performAuthCheck() async {
+    String? token;
+    String? userId;
+
+    // Isolate SecureStorage read so a PlatformException (web plugin missing)
+    // doesn't swallow token-expiry or network errors below.
     try {
-      final token = await storage.getAccessToken();
-      final userId = await storage.getUserId();
-      if (token != null && userId != null) {
+      token = await storage.getAccessToken();
+      userId = await storage.getUserId();
+    } on Exception catch (e) {
+      debugPrint('[Auth] SecureStorage read failed: $e');
+      state = const AuthState();
+      return;
+    }
+
+    if (token != null && userId != null) {
+      try {
         // Validate token by fetching user profile
         final response = await apiClient.get(ApiEndpoints.usersMe);
         if (response.statusCode == 200) {
@@ -90,24 +110,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
           await socketService.connect();
           return;
         }
+      } catch (_) {
+        // Token invalid or expired — try refresh
+        await _tryRefresh();
+        return;
       }
-    } catch (_) {
-      // Token invalid or expired — try refresh
-      await _tryRefresh();
-      return;
     }
+
     state = const AuthState();
   }
 
   /// Sign in with Google — handles the full OAuth flow internally.
   Future<void> signInWithGoogle() async {
+    // Guard against concurrent calls while a sign-in is already in progress.
+    if (state.isLoading) return;
+
+    // google_sign_in does not support Linux desktop.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.linux) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Google Sign-In is not supported on this platform. Use the dev bypass or a mobile device.',
+      );
+      return;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // Trigger native Google Sign-In picker
-      final googleSignIn = GoogleSignIn(
-        scopes: ['email', 'profile'],
-      );
-      final account = await googleSignIn.signIn();
+      // Trigger native Google Sign-In picker using the shared instance.
+      final account = await _googleSignIn.signIn();
       if (account == null) {
         // User cancelled
         state = state.copyWith(isLoading: false);
@@ -235,8 +265,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await storage.setAccessToken(data['accessToken']);
       await storage.setRefreshToken(data['refreshToken']);
 
-      // Re-check auth with new token
-      await checkAuth();
+      // Validate new tokens and fetch user profile directly,
+      // avoiding the isLoading toggle and timeout wrapper in checkAuth().
+      await _performAuthCheck();
     } catch (_) {
       try {
         await storage.clearAll();
