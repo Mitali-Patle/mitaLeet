@@ -10,13 +10,13 @@
     "package": "plasmo package"
   },
   "dependencies": {
+    "@plasmohq/messaging": "^0.6.2",
     "plasmo": "^0.90.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "socket.io-client": "^4.7.4"
   },
   "devDependencies": {
-    "@plasmohq/messaging": "^0.6.2",
     "@types/chrome": "^0.0.268",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

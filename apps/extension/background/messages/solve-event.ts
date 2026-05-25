@@ -37,7 +37,7 @@ async function apiPost(path: string, body: unknown, token: string): Promise<bool
 
 // ── Message handler ───────────────────────────────────────────────────
 
-export const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
+const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
   const auth = await getAuth();
   if (!auth) {
     res.send({ ok: false, reason: 'not_authenticated' });
@@ -79,3 +79,5 @@ export const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 
   res.send({ ok: true });
 };
+
+export default handler;
