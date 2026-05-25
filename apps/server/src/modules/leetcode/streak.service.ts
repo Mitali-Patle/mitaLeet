@@ -109,6 +109,23 @@ export class StreakService {
     }
   }
 
+  /**
+   * Anchor lastSolveDate to an actual past solve date without touching streak
+   * counters. Used on first sync so the streak logic has a real baseline to
+   * work from, without falsely marking today as solved.
+   */
+  async anchorLastSolveDate(userId: string, date: Date): Promise<void> {
+    const streak = await this.getOrCreate(userId);
+    // Only update if there is no existing lastSolveDate (true first sync),
+    // or if the real solve date is more recent than what's stored.
+    if (!streak.lastSolveDate || date > streak.lastSolveDate) {
+      await this.prisma.streak.update({
+        where: { userId },
+        data: { lastSolveDate: date },
+      });
+    }
+  }
+
   /** Get full streak info. */
   async getStreak(userId: string) {
     const streak = await this.getOrCreate(userId);

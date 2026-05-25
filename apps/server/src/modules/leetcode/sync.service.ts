@@ -95,10 +95,17 @@ export class SyncService {
 
       // 2. Ingest submissions
       const submissions = await this.leetcode.fetchRecentSubmissions(username, 50);
-      const newSolves = await this.ingestSubmissions(userId, submissions);
+      const { newSolves, hasTodaySolve, mostRecentSolveAt } = await this.ingestSubmissions(userId, submissions);
 
-      // 3. Update streak
-      if (newSolves > 0) await this.streakService.recordSolve(userId);
+      // 3. Update streak — only fire recordSolve for genuine today-solves.
+      // Historical back-fills (first sync) must not mark today as solved.
+      if (hasTodaySolve) {
+        await this.streakService.recordSolve(userId);
+      } else if (newSolves > 0 && mostRecentSolveAt) {
+        // First-time sync: anchor lastSolveDate to the actual most recent solve
+        // so streak continuity is correct going forward.
+        await this.streakService.anchorLastSolveDate(userId, mostRecentSolveAt);
+      }
 
       // 4. Daily solve counters
       await this.updateDailySolves(userId);
@@ -136,7 +143,13 @@ export class SyncService {
   }
 
   private async ingestSubmissions(userId: string, subs: LeetCodeSubmission[]) {
-    let newCount = 0;
+    let newSolves = 0;
+    let hasTodaySolve = false;
+    let mostRecentSolveAt: Date | null = null;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     for (const sub of subs) {
       const solvedAt = new Date(sub.timestamp * 1000);
       await this.ensureProblem(sub.slug, sub.title);
@@ -167,10 +180,18 @@ export class SyncService {
             problemId: problem?.id,
           },
         });
-        newCount++;
+        newSolves++;
+
+        // Track whether any new solve actually happened today.
+        if (solvedAt >= todayStart) hasTodaySolve = true;
+
+        // Track the most recent solve date across all new ingestions.
+        if (!mostRecentSolveAt || solvedAt > mostRecentSolveAt) {
+          mostRecentSolveAt = solvedAt;
+        }
       }
     }
-    return newCount;
+    return { newSolves, hasTodaySolve, mostRecentSolveAt };
   }
 
   private async ensureProblem(slug: string, title: string) {

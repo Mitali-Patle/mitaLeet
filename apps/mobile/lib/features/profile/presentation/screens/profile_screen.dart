@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/storage/secure_storage.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
 import '../../../../shared/widgets/lc_stat_container.dart';
 import '../../../../shared/widgets/lc_streak_indicator.dart';
@@ -11,6 +13,7 @@ import '../../../../shared/widgets/lc_progress_bar.dart';
 import '../../../../shared/widgets/lc_metallic_container.dart';
 import '../../../../shared/widgets/lc_status_badge.dart';
 import '../../../../shared/widgets/lc_shimmer.dart';
+import '../../../../shared/widgets/lc_toast.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../../leetcode/providers/leetcode_provider.dart';
 import '../../../gamification/providers/gamification_provider.dart';
@@ -257,6 +260,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const SizedBox(height: AppSpacing.sectionGap),
 
+              // ── Extension token ─────────────────────────────
+              _ExtensionTokenCard(storage: ref.read(secureStorageProvider)),
+              const SizedBox(height: AppSpacing.sectionGap),
+
               // ── Sign out ────────────────────────────────────
               SizedBox(
                 width: double.infinity,
@@ -280,6 +287,104 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 }
+
+// ── Extension Token Card ─────────────────────────────────────────────────────
+
+class _ExtensionTokenCard extends StatefulWidget {
+  const _ExtensionTokenCard({required this.storage});
+  final SecureStorage storage;
+
+  @override
+  State<_ExtensionTokenCard> createState() => _ExtensionTokenCardState();
+}
+
+class _ExtensionTokenCardState extends State<_ExtensionTokenCard> {
+  bool _copied = false;
+
+  Future<void> _copyToken() async {
+    final token = await widget.storage.getAccessToken();
+    if (token == null || !mounted) return;
+    await Clipboard.setData(ClipboardData(text: token));
+    setState(() => _copied = true);
+    if (mounted) {
+      LCToastManager.show(
+        context,
+        title: 'Token copied',
+        subtitle: 'Paste it into the mitaLeet Chrome extension',
+        accentColor: AppColors.primary,
+      );
+    }
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _copied = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LCMetallicContainer(
+      intensity: MetallicIntensity.subtle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(PhosphorIconsBold.puzzlePiece,
+                  size: 12, color: AppColors.primary),
+              const SizedBox(width: AppSpacing.sm),
+              Text('EXTENSION TOKEN',
+                  style: AppTypography.tacticalLabel(color: AppColors.primary)),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Copy your API token and paste it into the mitaLeet Chrome extension to enable real-time solve tracking.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.onSurfaceMedium,
+                  height: 1.5,
+                ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          GestureDetector(
+            onTap: _copyToken,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.surfaceBorder),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX...',
+                      style: AppTypography.tacticalLabel(
+                        fontSize: 9,
+                        color: AppColors.onSurfaceDim,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Icon(
+                    _copied
+                        ? PhosphorIconsBold.checkCircle
+                        : PhosphorIconsBold.copy,
+                    size: 16,
+                    color:
+                        _copied ? AppColors.success : AppColors.onSurfaceMedium,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Difficulty Row ────────────────────────────────────────────────────────────
 
 class _DifficultyRow extends StatelessWidget {
   const _DifficultyRow({

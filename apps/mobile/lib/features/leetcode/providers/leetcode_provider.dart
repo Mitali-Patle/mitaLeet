@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -304,6 +305,14 @@ class LeetCodeNotifier extends StateNotifier<LeetCodeState> {
   }
 
   String _extractError(dynamic e) {
+    if (e is DioException) {
+      // Pull the message field from the server's JSON error body first.
+      final msg = e.response?.data?['message'];
+      if (msg != null && msg.toString().isNotEmpty) return msg.toString();
+      // Fall back to HTTP status.
+      final status = e.response?.statusCode;
+      if (status != null) return 'Server error $status';
+    }
     return e.toString().replaceAll('Exception:', '').trim();
   }
 
