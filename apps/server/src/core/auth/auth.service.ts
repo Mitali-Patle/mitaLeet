@@ -186,7 +186,14 @@ export class AuthService {
     email: string,
   ): Promise<TokenPair> {
     const sessionId = uuid();
-    const refreshExpDays = 7;
+
+    // Read refresh token TTL from config (e.g. "30d", "7d").
+    // Parse the numeric day suffix; fall back to 30 days if missing or unparseable.
+    const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '30d');
+    const dayMatch = refreshExpiresIn.match(/^(\d+)d$/);
+    const refreshExpDays = dayMatch
+      ? parseInt(dayMatch[1], 10)
+      : (parseInt(refreshExpiresIn, 10) || 30);
 
     const session = await this.prisma.userSession.create({
       data: {
@@ -205,9 +212,9 @@ export class AuthService {
       sessionId,
     };
 
-    const accessToken = await this.jwtService.signAsync(jwtPayload, {
-      expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRATION', '15m') as any,
-    });
+    // Let JwtModule.registerAsync (configured in auth.module.ts) handle expiry —
+    // do not pass options here to avoid two sources of truth.
+    const accessToken = await this.jwtService.signAsync(jwtPayload);
 
     return {
       accessToken,

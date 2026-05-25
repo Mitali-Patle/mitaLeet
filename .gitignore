@@ -51,3 +51,13 @@ apps/extension/build/
 apps/extension/.plasmo/
 
 .claude/
+
+# Secrets — NEVER commit private keys or service accounts
+secrets/
+
+# Firebase / Google platform config (contain API keys & OAuth client secrets)
+apps/mobile/android/app/google-services.json
+apps/mobile/ios/Runner/GoogleService-Info.plist
+
+# Android local machine paths
+apps/mobile/android/local.properties
