@@ -62,3 +62,6 @@ apps/mobile/ios/Runner/GoogleService-Info.plist
 # Android / iOS local machine paths
 apps/mobile/android/local.properties
 apps/mobile/pubspec.lock
+
+# Local Netlify folder
+.netlify

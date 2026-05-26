@@ -7,6 +7,7 @@ RUN npm ci --ignore-scripts
 
 COPY . .
 # Now schema is present: generate the Prisma client for the correct binary target
+RUN npm install
 RUN npx prisma generate
 RUN npm run build
 

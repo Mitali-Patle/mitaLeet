@@ -5,8 +5,8 @@ abstract final class AppConstants {
   // ── API ────────────────────────────────────────────────────────────
   // Update to your deployed server URL for production builds.
   // For local Android device testing, replace with your machine's LAN IP.
-  static const String baseUrl = 'http://localhost:3000/api/v1';
-  static const String wsUrl = 'http://localhost:3000';
+  static const String baseUrl = 'https://mitaleet.onrender.com/api/v1';
+  static const String wsUrl = 'https://mitaleet.onrender.com';
 
   // ── Storage keys ───────────────────────────────────────────────────
   static const String accessTokenKey = 'access_token';

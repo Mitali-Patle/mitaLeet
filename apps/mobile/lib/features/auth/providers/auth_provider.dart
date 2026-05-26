@@ -60,16 +60,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final SocketService socketService;
 
   // Single GoogleSignIn instance — avoids creating duplicates on rapid taps.
-  // serverClientId is the OAuth 2.0 Web Client ID (public, not a secret —
-  // it appears in OAuth redirect URLs and is safe to include in source).
+  // serverClientId: Web Application client ID used on Android/iOS to get an
+  //   ID token the backend can verify. Public — safe in source.
+  // clientId: Web Application client ID for browser sign-in (different OAuth
+  //   client created in Google Cloud Console with Netlify origin authorised).
+  static const _webClientId =
+      '271726528316-k1aqb21aebe1nddshhnc79hiqdn2afft.apps.googleusercontent.com';
+  static const _serverClientId =
+      '271726528316-k1aqb21aebe1nddshhnc79hiqdn2afft.apps.googleusercontent.com';
+
   final _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    // clientId is required on web; serverClientId is used on Android/iOS
-    // to request a server auth code alongside the ID token.
-    clientId: kIsWeb
-        ? '271726528316-k1aqb21aebe1nddshhnc79hiqdn2afft.apps.googleusercontent.com'
-        : null,
-    serverClientId: '271726528316-k1aqb21aebe1nddshhnc79hiqdn2afft.apps.googleusercontent.com',
+    clientId: kIsWeb ? _webClientId : null,
+    serverClientId: _serverClientId,
   );
   /// Check persisted auth on app launch.
   Future<void> checkAuth() async {
