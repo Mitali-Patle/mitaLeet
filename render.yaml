@@ -4,8 +4,8 @@ services:
     env: node
     rootDir: apps/server
     buildCommand: npm ci && npx prisma generate && npm run build
-    preDeployCommand: npx prisma generate && npx prisma migrate deploy
-    startCommand: npm run start:prod
+    preDeployCommand: npx prisma migrate deploy
+    startCommand: npx prisma generate && npm run start:prod
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
