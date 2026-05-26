@@ -64,6 +64,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   // it appears in OAuth redirect URLs and is safe to include in source).
   final _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    // clientId is required on web; serverClientId is used on Android/iOS
+    // to request a server auth code alongside the ID token.
+    clientId: kIsWeb
+        ? '271726528316-k1aqb21aebe1nddshhnc79hiqdn2afft.apps.googleusercontent.com'
+        : null,
     serverClientId: '271726528316-k1aqb21aebe1nddshhnc79hiqdn2afft.apps.googleusercontent.com',
   );
   /// Check persisted auth on app launch.
