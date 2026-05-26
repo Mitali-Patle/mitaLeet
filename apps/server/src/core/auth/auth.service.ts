@@ -5,12 +5,33 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { OAuth2Client } from 'google-auth-library';
-import * as admin from 'firebase-admin';
+import { OAuth2Client, LoginTicket } from 'google-auth-library';
+import { createVerify } from 'crypto';
 import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload, TokenPair } from './types';
 import { GoogleAuthDto, RefreshTokenDto } from './dto/auth.dto';
+
+// Shape of the Firebase ID token payload we care about.
+interface FirebaseTokenPayload {
+  iss: string;
+  aud: string;
+  sub: string;
+  user_id: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+  exp: number;
+  iat: number;
+  auth_time: number;
+  firebase?: {
+    identities?: { 'google.com'?: string[] };
+    sign_in_provider?: string;
+  };
+}
+
+const FIREBASE_CERT_URL =
+  'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 
 @Injectable()
 export class AuthService {
@@ -32,8 +53,8 @@ export class AuthService {
    *
    * Mobile (Android/iOS) sends a raw Google ID token verified by google-auth-library.
    * Web sends a Firebase ID token (iss: securetoken.google.com) verified by
-   * Firebase Admin — this sidesteps the OAuth implicit-flow deprecation that
-   * blocks google_sign_in on Flutter web.
+   * a manual RSA-SHA256 check against Google's public certs — bypassing the
+   * Firebase Admin SDK which has known cert-cache issues on some cloud hosts.
    *
    * Token type is auto-detected by the `iss` claim — no extra fields needed.
    */
@@ -56,32 +77,35 @@ export class AuthService {
 
     if (isFirebaseToken) {
       // ── Web path: Firebase ID token ──────────────────────────────────────
-      const firebaseApp = admin.apps[0];
-      if (!firebaseApp) {
+      // Use manual RSA-SHA256 verification instead of firebase-admin.verifyIdToken,
+      // which has a known "No pem found" cert-cache failure on some hosting envs.
+      const projectId = this.config.getOrThrow<string>('FIREBASE_PROJECT_ID');
+      const decoded = await this.verifyFirebaseIdToken(dto.idToken, projectId);
+
+      if (!decoded.email) throw new UnauthorizedException('Firebase token has no email claim');
+
+      const googleIds = decoded.firebase?.identities?.['google.com'] ?? [];
+      googleId = googleIds[0] ?? decoded.sub;
+      email    = decoded.email;
+      name     = decoded.name;
+      picture  = decoded.picture;
+    } else {
+      // ── Mobile path: raw Google ID token ─────────────────────────────────
+      let ticket: LoginTicket;
+      try {
+        ticket = await this.googleClient.verifyIdToken({
+          idToken: dto.idToken,
+          audience: this.config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+        });
+      } catch (err) {
+        this.logger.error(`Google verifyIdToken failed: ${(err as Error).message}`);
         throw new UnauthorizedException(
-          'Firebase Admin not initialised — check server env vars.',
+          `Google token verification failed: ${(err as Error).message}`,
         );
       }
-      const decoded = await firebaseApp.auth().verifyIdToken(dto.idToken);
-      if (!decoded.email) throw new UnauthorizedException('Invalid Firebase token');
-
-      // Extract the underlying Google account ID from the Firebase identities map.
-      const googleIds = (
-        decoded.firebase?.identities?.['google.com'] ?? []
-      ) as string[];
-      googleId = googleIds[0] ?? decoded.uid;
-      email    = decoded.email;
-      name     = decoded.name as string | undefined;
-      picture  = decoded.picture as string | undefined;
-    } else {
-      // ── Mobile path: Google ID token ─────────────────────────────────────
-      const ticket = await this.googleClient.verifyIdToken({
-        idToken: dto.idToken,
-        audience: this.config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
-      });
       const payload = ticket.getPayload();
-      if (!payload || !payload.email) {
-        throw new UnauthorizedException('Invalid Google token');
+      if (!payload?.email) {
+        throw new UnauthorizedException('Google token has no email payload');
       }
       email    = payload.email;
       name     = payload.name;
@@ -91,9 +115,7 @@ export class AuthService {
 
     // Find or create user
     let isNewUser = false;
-    let user = await this.prisma.user.findUnique({
-      where: { googleId },
-    });
+    let user = await this.prisma.user.findUnique({ where: { googleId } });
 
     if (!user) {
       isNewUser = true;
@@ -108,15 +130,12 @@ export class AuthService {
               username: email.split('@')[0] + '_' + uuid().slice(0, 4),
             },
           },
-          streak: {
-            create: {},
-          },
+          streak: { create: {} },
         },
       });
       this.logger.log(`New user created: ${user.id}`);
     }
 
-    // Create session + tokens
     const tokens = await this.createSession(user.id, user.email);
 
     return {
@@ -128,6 +147,94 @@ export class AuthService {
         isNewUser,
       },
     };
+  }
+
+  /**
+   * Verify a Firebase ID token using manual RSA-SHA256 verification.
+   *
+   * Fetches Google's public certs directly — same approach Firebase Admin uses
+   * internally, but without the SDK's cert-cache layer that fails on some hosts.
+   */
+  private async verifyFirebaseIdToken(
+    idToken: string,
+    projectId: string,
+  ): Promise<FirebaseTokenPayload> {
+    const parts = idToken.split('.');
+    if (parts.length !== 3) {
+      throw new UnauthorizedException('Malformed Firebase ID token');
+    }
+
+    // Decode header to get the key ID.
+    let header: { alg: string; kid: string };
+    let payload: FirebaseTokenPayload;
+    try {
+      header  = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+      payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+    } catch {
+      throw new UnauthorizedException('Firebase token is not valid JSON');
+    }
+
+    if (header.alg !== 'RS256') {
+      throw new UnauthorizedException(`Unsupported Firebase token algorithm: ${header.alg}`);
+    }
+
+    // Fetch Google's current Firebase signing certs.
+    let certs: Record<string, string>;
+    try {
+      const res = await fetch(FIREBASE_CERT_URL, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      certs = (await res.json()) as Record<string, string>;
+    } catch (err) {
+      this.logger.error(`Failed to fetch Firebase certs: ${(err as Error).message}`);
+      throw new UnauthorizedException('Could not fetch Firebase public certs');
+    }
+
+    const cert = certs[header.kid];
+    if (!cert) {
+      const availableKids = Object.keys(certs).join(', ');
+      this.logger.error(
+        `Firebase cert not found for kid=${header.kid}. Available kids: ${availableKids}`,
+      );
+      throw new UnauthorizedException(
+        `Firebase token key ID not found in Google's current cert set`,
+      );
+    }
+
+    // Verify the JWT signature.
+    const signingInput = `${parts[0]}.${parts[1]}`;
+    const signature    = Buffer.from(parts[2], 'base64url');
+    const verifier     = createVerify('RSA-SHA256');
+    verifier.update(signingInput);
+    const sigValid = verifier.verify(cert, signature);
+    if (!sigValid) {
+      throw new UnauthorizedException('Firebase token signature is invalid');
+    }
+
+    // Verify standard JWT claims.
+    const now = Math.floor(Date.now() / 1000);
+    if (!payload.exp || payload.exp <= now) {
+      throw new UnauthorizedException('Firebase token has expired');
+    }
+    if (!payload.iat || payload.iat > now + 300) {
+      throw new UnauthorizedException('Firebase token iat is in the future');
+    }
+    if (payload.aud !== projectId) {
+      throw new UnauthorizedException(
+        `Firebase token audience mismatch: expected ${projectId}, got ${payload.aud}`,
+      );
+    }
+    if (payload.iss !== `https://securetoken.google.com/${projectId}`) {
+      throw new UnauthorizedException(
+        `Firebase token issuer mismatch: ${payload.iss}`,
+      );
+    }
+    if (!payload.sub) {
+      throw new UnauthorizedException('Firebase token missing sub claim');
+    }
+
+    return payload;
   }
 
   /**
@@ -146,7 +253,6 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    // Rotate refresh token
     await this.prisma.userSession.delete({ where: { id: session.id } });
     return this.createSession(session.userId, session.user.email);
   }
@@ -155,18 +261,14 @@ export class AuthService {
    * Logout — invalidate session.
    */
   async logout(refreshToken: string): Promise<void> {
-    await this.prisma.userSession.deleteMany({
-      where: { refreshToken },
-    });
+    await this.prisma.userSession.deleteMany({ where: { refreshToken } });
   }
 
   /**
    * Logout from all devices.
    */
   async logoutAll(userId: string): Promise<void> {
-    await this.prisma.userSession.deleteMany({
-      where: { userId },
-    });
+    await this.prisma.userSession.deleteMany({ where: { userId } });
   }
 
   /**
@@ -184,9 +286,7 @@ export class AuthService {
     const googleId = `google-${cleanUsername}`;
 
     let isNewUser = false;
-    let user = await this.prisma.user.findUnique({
-      where: { googleId },
-    });
+    let user = await this.prisma.user.findUnique({ where: { googleId } });
 
     if (!user) {
       isNewUser = true;
@@ -195,20 +295,13 @@ export class AuthService {
           email: `${cleanUsername}@example.com`,
           displayName: cleanUsername,
           googleId,
-          profile: {
-            create: {
-              username: cleanUsername,
-            },
-          },
-          streak: {
-            create: {},
-          },
+          profile: { create: { username: cleanUsername } },
+          streak:  { create: {} },
         },
       });
       this.logger.log(`New dev user created: ${user.id}`);
     }
 
-    // Create session + tokens
     const tokens = await this.createSession(user.id, user.email);
 
     return {
@@ -224,14 +317,9 @@ export class AuthService {
 
   // ── Private helpers ────────────────────────────────────────────────
 
-  private async createSession(
-    userId: string,
-    email: string,
-  ): Promise<TokenPair> {
+  private async createSession(userId: string, email: string): Promise<TokenPair> {
     const sessionId = uuid();
 
-    // Read refresh token TTL from config (e.g. "30d", "7d").
-    // Parse the numeric day suffix; fall back to 30 days if missing or unparseable.
     const refreshExpiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN', '30d');
     const dayMatch = refreshExpiresIn.match(/^(\d+)d$/);
     const refreshExpDays = dayMatch
@@ -243,25 +331,14 @@ export class AuthService {
         id: sessionId,
         refreshToken: uuid(),
         userId,
-        expiresAt: new Date(
-          Date.now() + refreshExpDays * 24 * 60 * 60 * 1000,
-        ),
+        expiresAt: new Date(Date.now() + refreshExpDays * 24 * 60 * 60 * 1000),
       },
     });
 
-    const jwtPayload: JwtPayload = {
-      sub: userId,
-      email,
-      sessionId,
-    };
+    const jwtPayload: JwtPayload = { sub: userId, email, sessionId };
 
-    // Let JwtModule.registerAsync (configured in auth.module.ts) handle expiry —
-    // do not pass options here to avoid two sources of truth.
     const accessToken = await this.jwtService.signAsync(jwtPayload);
 
-    return {
-      accessToken,
-      refreshToken: session.refreshToken,
-    };
+    return { accessToken, refreshToken: session.refreshToken };
   }
 }
