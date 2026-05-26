@@ -229,7 +229,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (e is DioException) {
         final status = e.response?.statusCode;
         final serverMsg = e.response?.data?['message'] ?? e.response?.data;
-        msg = 'HTTP $status — $serverMsg';
+        final type = e.type.name; // connectionError = CORS/network, connectionTimeout = server asleep
+        msg = 'HTTP $status [$type] — $serverMsg';
+        debugPrint('[Auth] DioException type: $type');
         debugPrint('[Auth] backend response: ${e.response?.data}');
       }
       state = state.copyWith(
