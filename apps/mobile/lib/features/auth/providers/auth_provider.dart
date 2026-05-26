@@ -159,10 +159,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       await _signInWithIdToken(idToken);
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Google sign-in failed. Please try again.',
-      );
+      debugPrint('[Auth] signInWithGoogle error: $e');
+      final msg = e.toString();
+      String userError;
+      if (msg.contains('popup_closed') || msg.contains('user_cancelled')) {
+        userError = 'Sign-in cancelled.';
+      } else if (msg.contains('popup_blocked') || msg.contains('popup-blocked')) {
+        userError = 'Popup blocked — allow popups for this site and try again.';
+      } else if (msg.contains('origin') || msg.contains('not allowed')) {
+        userError = 'Domain not authorised in Google Cloud Console. Contact support.';
+      } else if (msg.contains('network') || msg.contains('NetworkError')) {
+        userError = 'Network error — check your connection.';
+      } else {
+        userError = 'Google sign-in failed: $msg';
+      }
+      state = state.copyWith(isLoading: false, error: userError);
     }
   }
 
