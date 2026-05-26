@@ -16,35 +16,42 @@ async function bootstrap() {
 
   const isDev = config.get<string>('NODE_ENV', 'development') !== 'production';
 
-  app.enableCors({
-    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Allow requests with no origin (mobile apps, curl, Postman)
-      if (!origin) return callback(null, true);
+  // Build the origin allowlist. In dev every localhost variant is allowed;
+  // in production the list comes from the CORS_ORIGINS env var.
+  const prodOrigins = config
+    .get<string>('CORS_ORIGINS', '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
 
-      if (isDev) {
-        // Allow any localhost / 127.0.0.1 origin in development
-        if (
-          origin.startsWith('http://localhost') ||
-          origin.startsWith('http://127.0.0.1') ||
-          origin === 'capacitor://localhost' ||
-          origin === 'ionic://localhost' ||
-          origin.startsWith('chrome-extension://')
-        ) {
-          return callback(null, true);
-        }
-      } else {
-        // Production: use explicit allowlist from env
-        const allowed = config
-          .get<string>('CORS_ORIGINS', '')
-          .split(',')
-          .map((o) => o.trim());
-        if (allowed.includes(origin)) {
-          return callback(null, true);
-        }
+  const devOrigins = [
+    'http://localhost:3000',
+    'http://localhost:4200',
+    'http://localhost:8080',
+    'http://127.0.0.1:3000',
+    'capacitor://localhost',
+    'ionic://localhost',
+  ];
+
+  const allowedOrigins = isDev ? devOrigins : prodOrigins;
+
+  console.log(`[CORS] mode=${isDev ? 'dev' : 'prod'} origins=${JSON.stringify(allowedOrigins)}`);
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      // No origin = mobile app / curl / Postman — always allow
+      if (!origin) return callback(null, true);
+      // In dev also allow any localhost port
+      if (isDev && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))) {
+        return callback(null, true);
       }
-      return callback(new Error(`CORS: origin ${origin} not allowed`), false);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.warn(`[CORS] blocked origin: ${origin}`);
+      callback(null, false);
     },
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Health check for Railway / load balancers
