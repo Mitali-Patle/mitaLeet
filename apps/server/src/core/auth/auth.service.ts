@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
+import * as admin from 'firebase-admin';
 import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload, TokenPair } from './types';
@@ -27,24 +28,66 @@ export class AuthService {
   }
 
   /**
-   * Authenticate with Google ID token.
-   * Creates user if first login, otherwise returns existing user.
+   * Authenticate with a Google or Firebase ID token.
+   *
+   * Mobile (Android/iOS) sends a raw Google ID token verified by google-auth-library.
+   * Web sends a Firebase ID token (iss: securetoken.google.com) verified by
+   * Firebase Admin — this sidesteps the OAuth implicit-flow deprecation that
+   * blocks google_sign_in on Flutter web.
+   *
+   * Token type is auto-detected by the `iss` claim — no extra fields needed.
    */
   async googleAuth(dto: GoogleAuthDto): Promise<{
     tokens: TokenPair;
     user: { id: string; email: string; displayName: string; isNewUser: boolean };
   }> {
-    // Verify Google token
-    const ticket = await this.googleClient.verifyIdToken({
-      idToken: dto.idToken,
-      audience: this.config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
-    });
-    const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
-      throw new UnauthorizedException('Invalid Google token');
-    }
+    let email: string;
+    let name: string | undefined;
+    let picture: string | undefined;
+    let googleId: string;
 
-    const { email, name, picture, sub: googleId } = payload;
+    // Decode issuer from the JWT payload (no crypto needed — we verify next).
+    const rawPayload = dto.idToken.split('.')[1];
+    const jwtPayload = JSON.parse(
+      Buffer.from(rawPayload, 'base64').toString('utf8'),
+    );
+    const isFirebaseToken = (jwtPayload.iss as string | undefined)
+      ?.startsWith('https://securetoken.google.com/');
+
+    if (isFirebaseToken) {
+      // ── Web path: Firebase ID token ──────────────────────────────────────
+      const firebaseApp = admin.apps[0];
+      if (!firebaseApp) {
+        throw new UnauthorizedException(
+          'Firebase Admin not initialised — check server env vars.',
+        );
+      }
+      const decoded = await firebaseApp.auth().verifyIdToken(dto.idToken);
+      if (!decoded.email) throw new UnauthorizedException('Invalid Firebase token');
+
+      // Extract the underlying Google account ID from the Firebase identities map.
+      const googleIds = (
+        decoded.firebase?.identities?.['google.com'] ?? []
+      ) as string[];
+      googleId = googleIds[0] ?? decoded.uid;
+      email    = decoded.email;
+      name     = decoded.name as string | undefined;
+      picture  = decoded.picture as string | undefined;
+    } else {
+      // ── Mobile path: Google ID token ─────────────────────────────────────
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken: dto.idToken,
+        audience: this.config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+      });
+      const payload = ticket.getPayload();
+      if (!payload || !payload.email) {
+        throw new UnauthorizedException('Invalid Google token');
+      }
+      email    = payload.email;
+      name     = payload.name;
+      picture  = payload.picture;
+      googleId = payload.sub;
+    }
 
     // Find or create user
     let isNewUser = false;

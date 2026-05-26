@@ -148,18 +148,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       String? idToken;
 
       if (kIsWeb) {
-        // On web, google_sign_in falls back to the deprecated implicit token
-        // flow which Google now blocks. Use Firebase Auth popup instead —
-        // it uses the authorization code flow and returns a Google ID token
-        // that the backend can verify with google-auth-library unchanged.
+        // On web, google_sign_in uses a deprecated implicit token flow that
+        // Google now blocks. Use Firebase Auth popup instead, then send the
+        // Firebase ID token (iss: securetoken.google.com). The backend
+        // auto-detects the token type by issuer and verifies accordingly.
         final googleProvider = GoogleAuthProvider()
           ..addScope('email')
           ..addScope('profile');
         final userCredential =
             await FirebaseAuth.instance.signInWithPopup(googleProvider);
-        final oauthCredential =
-            userCredential.credential as OAuthCredential?;
-        idToken = oauthCredential?.idToken;
+        idToken = await userCredential.user?.getIdToken();
       } else {
         // Mobile: use google_sign_in (native picker, returns ID token directly).
         final account = await _googleSignIn.signIn();
