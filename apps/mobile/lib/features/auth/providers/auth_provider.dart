@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -222,9 +223,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       await socketService.connect();
     } catch (e) {
+      debugPrint('[Auth] _signInWithIdToken error: $e');
+      String msg = e.toString();
+      // Extract HTTP status / server message from DioException if available
+      if (e is DioException) {
+        final status = e.response?.statusCode;
+        final serverMsg = e.response?.data?['message'] ?? e.response?.data;
+        msg = 'HTTP $status — $serverMsg';
+        debugPrint('[Auth] backend response: ${e.response?.data}');
+      }
       state = state.copyWith(
         isLoading: false,
-        error: 'Authentication failed. Please try again.',
+        error: 'Auth failed: $msg',
       );
     }
   }
