@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -144,15 +145,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // Trigger native Google Sign-In picker using the shared instance.
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        // User cancelled
-        state = state.copyWith(isLoading: false);
-        return;
+      String? idToken;
+
+      if (kIsWeb) {
+        // On web, google_sign_in falls back to the deprecated implicit token
+        // flow which Google now blocks. Use Firebase Auth popup instead —
+        // it uses the authorization code flow and returns a Google ID token
+        // that the backend can verify with google-auth-library unchanged.
+        final googleProvider = GoogleAuthProvider()
+          ..addScope('email')
+          ..addScope('profile');
+        final userCredential =
+            await FirebaseAuth.instance.signInWithPopup(googleProvider);
+        final oauthCredential =
+            userCredential.credential as OAuthCredential?;
+        idToken = oauthCredential?.idToken;
+      } else {
+        // Mobile: use google_sign_in (native picker, returns ID token directly).
+        final account = await _googleSignIn.signIn();
+        if (account == null) {
+          state = state.copyWith(isLoading: false);
+          return;
+        }
+        final auth = await account.authentication;
+        idToken = auth.idToken;
       }
-      final auth = await account.authentication;
-      final idToken = auth.idToken;
+
       if (idToken == null) {
         state = state.copyWith(
           isLoading: false,
