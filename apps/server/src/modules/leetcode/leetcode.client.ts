@@ -1,10 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+const REQUEST_TIMEOUT_MS = 10_000;
 
 /** Unofficial LeetCode GraphQL API client. */
 @Injectable()
 export class LeetCodeClient {
   private readonly logger = new Logger(LeetCodeClient.name);
-  private readonly BASE = 'https://leetcode.com/graphql';
+  private readonly BASE: string;
+
+  constructor(config: ConfigService) {
+    this.BASE = config.get<string>('LEETCODE_GRAPHQL_URL', 'https://leetcode.com/graphql');
+  }
 
   /** Validate that a LeetCode username exists. */
   async validateUsername(username: string): Promise<boolean> {
@@ -175,6 +182,8 @@ export class LeetCodeClient {
           'User-Agent': 'mitaLeet/1.0',
         },
         body: JSON.stringify({ query, variables }),
+        // A hung request would otherwise hold a sync slot indefinitely.
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
 
       if (!res.ok) {
