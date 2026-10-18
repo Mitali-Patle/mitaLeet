@@ -27,6 +27,38 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceVariant,
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your profile, solves, streaks, XP, friends and squad '
+          'memberships. Squads you own pass to another member. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await ref.read(authStateProvider.notifier).deleteAccount();
+    if (!ok && mounted) {
+      LCToastManager.show(
+        context,
+        title: 'Could not delete account',
+        subtitle: 'Check your connection and try again',
+        accentColor: AppColors.error,
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -276,6 +308,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Text(
                     'SIGN OUT',
                     style: AppTypography.tacticalLabel(color: AppColors.error),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // ── Delete account (required by the app stores) ─────────
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: _confirmDeleteAccount,
+                  child: Text(
+                    'DELETE ACCOUNT',
+                    style: AppTypography.tacticalLabel(fontSize: 9, color: AppColors.onSurfaceDim),
                   ),
                 ),
               ),

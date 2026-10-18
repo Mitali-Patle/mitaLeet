@@ -302,6 +302,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Permanently delete the account on the server, then clear local data.
+  /// Returns false (and keeps the session) if the server call fails.
+  Future<bool> deleteAccount() async {
+    try {
+      await apiClient.delete(ApiEndpoints.usersMe, data: {'confirm': 'DELETE'});
+    } catch (e) {
+      debugPrint('[Auth] deleteAccount failed: $e');
+      return false;
+    }
+    socketService.disconnect();
+    await storage.clearAll();
+    state = const AuthState();
+    return true;
+  }
+
   /// Sign out and clear all persisted data.
   Future<void> signOut() async {
     try {

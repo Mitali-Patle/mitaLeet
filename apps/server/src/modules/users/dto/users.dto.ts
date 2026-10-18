@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsTimeZone, IsUrl, Length, MinLength, MaxLength, Matches } from 'class-validator';
+import { Equals, IsOptional, IsString, IsTimeZone, IsUrl, Length, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -40,4 +40,10 @@ export class RegisterDeviceDto {
   @IsString()
   @Matches(/^(android|ios|web)$/)
   platform!: string;
+}
+
+export class DeleteAccountDto {
+  /** Must be exactly "DELETE" so an accidental call cannot erase an account. */
+  @Equals('DELETE')
+  confirm!: string;
 }

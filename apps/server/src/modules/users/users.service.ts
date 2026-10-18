@@ -112,6 +112,32 @@ export class UsersService {
     });
   }
 
+  /**
+   * Delete the account and everything that belongs to it (profile, sessions,
+   * devices, solves, streak, activity, notifications, friendships, requests,
+   * memberships, races created) via the schema's ON DELETE CASCADE.
+   * Squads the user owns go to the longest-standing admin (else member), or
+   * are deleted when nobody else is left.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const owned = await tx.groupMember.findMany({ where: { userId, role: 'OWNER' }, select: { groupId: true } });
+      for (const { groupId } of owned) {
+        const successor = await tx.groupMember.findFirst({
+          where: { groupId, userId: { not: userId } },
+          orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }], // enum order: OWNER, ADMIN, MEMBER
+        });
+        if (successor) {
+          await tx.groupMember.update({ where: { id: successor.id }, data: { role: 'OWNER' } });
+        } else {
+          await tx.group.delete({ where: { id: groupId } });
+        }
+      }
+      await tx.user.delete({ where: { id: userId } });
+    });
+    this.logger.log(`Account deleted: ${userId}`);
+  }
+
   /** Update user online status. */
   async updateStatus(userId: string, status: 'ONLINE' | 'OFFLINE' | 'SOLVING' | 'IDLE') {
     return this.prisma.user.update({

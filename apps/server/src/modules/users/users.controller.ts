@@ -7,9 +7,10 @@ import {
   Body,
   Param,
   UseGuards,
+  HttpCode,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { UpdateProfileDto, RegisterDeviceDto } from './dto/users.dto';
+import { UpdateProfileDto, RegisterDeviceDto, DeleteAccountDto } from './dto/users.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
 
@@ -20,6 +21,13 @@ export class UsersController {
   @Get('me')
   getMe(@CurrentUser() user: JwtPayload) {
     return this.usersService.getMe(user.sub);
+  }
+
+  /** Permanently delete the caller's account and data (app-store requirement). */
+  @Delete('me')
+  @HttpCode(204)
+  async deleteMe(@CurrentUser() user: JwtPayload, @Body() _dto: DeleteAccountDto) {
+    await this.usersService.deleteAccount(user.sub);
   }
 
   @Put('me/profile')
