@@ -24,6 +24,14 @@ describe('App baseline (e2e)', () => {
     expect(res.body.success).toBe(false);
   });
 
+  it('tags every response with a request id that also appears in error bodies', async () => {
+    const res = await ctx.http().get('/api/v1/users/me').expect(401);
+    expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(res.body.requestId).toBe(res.headers['x-request-id']);
+    const traced = await ctx.http().get('/health/live').set('X-Request-Id', 'client-trace-1234').expect(200);
+    expect(traced.headers['x-request-id']).toBe('client-trace-1234');
+  });
+
   it('returns the current user for a valid access token', async () => {
     const alice = await login(ctx, 'alice');
     const res = await ctx.http().get('/api/v1/users/me').set(alice.auth).expect(200);

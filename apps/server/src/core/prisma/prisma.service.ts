@@ -16,8 +16,6 @@ export class PrismaService
   constructor() {
     super({
       log: [
-        { emit: 'event', level: 'query' },
-        { emit: 'stdout', level: 'info' },
         { emit: 'stdout', level: 'warn' },
         { emit: 'stdout', level: 'error' },
       ],

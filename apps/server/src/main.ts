@@ -1,10 +1,14 @@
+import { ConsoleLogger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { configureApp } from './app.setup';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Structured JSON logs in production (searchable fields in Render / log drains).
+  const app = await NestFactory.create(AppModule, {
+    logger: new ConsoleLogger({ json: process.env.NODE_ENV === 'production' }),
+  });
   configureApp(app);
   // Run onModuleDestroy hooks on SIGTERM (every deploy) so in-flight work
   // finishes and DB connections close cleanly.

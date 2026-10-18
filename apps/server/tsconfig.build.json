@@ -1,4 +1,10 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // nest-cli deletes dist/ before each build (deleteOutDir); incremental
+    // build info lives outside dist/, so tsc would think nothing changed and
+    // emit nothing. Production builds are always full.
+    "incremental": false
+  },
   "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
 }

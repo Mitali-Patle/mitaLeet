@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import { randomUUID } from 'crypto';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -16,6 +17,15 @@ export function configureApp(app: INestApplication): void {
   // Behind Render/Cloudflare the client IP arrives in X-Forwarded-For; trust that
   // many proxy hops so rate limits and logs see real client IPs.
   (app as NestExpressApplication).set('trust proxy', Number(config.get('TRUST_PROXY_HOPS', 1)));
+
+  // Request ID: accept a sane incoming X-Request-Id (e.g. from a proxy) or
+  // create one; echoed in the response and in every log line for the request.
+  app.use((req: any, res: any, next: () => void) => {
+    const incoming = req.headers['x-request-id'];
+    req.id = typeof incoming === 'string' && /^[A-Za-z0-9._-]{8,64}$/.test(incoming) ? incoming : randomUUID();
+    res.setHeader('X-Request-Id', req.id);
+    next();
+  });
 
   // Security
   app.use(helmet());
