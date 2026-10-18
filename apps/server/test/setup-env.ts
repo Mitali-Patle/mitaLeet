@@ -10,5 +10,6 @@ process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
 process.env.FIREBASE_PROJECT_ID = 'test-project';
 process.env.ENABLE_DEV_LOGIN = 'true';
 process.env.LEETCODE_QUICK_SYNC_INTERVAL_MS = '0';
+process.env.LEETCODE_RATE_LIMIT_MS = '0';
 // Suites make many requests; test/rate-limit.e2e-spec.ts turns limits back on.
 process.env.THROTTLE_DISABLED = 'true';

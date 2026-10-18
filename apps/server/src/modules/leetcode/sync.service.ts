@@ -7,6 +7,7 @@ import { LeetCodeClient, LeetCodeSubmission } from './leetcode.client';
 import { StreakService } from './streak.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
 import { dateFromKey, getUserTimeZone, localDateKey, startOfLocalDay } from '../../common/time/user-day';
+import { runExclusive } from '../../common/jobs/run-exclusive';
 
 /** A solve that was just recorded from LeetCode's own accepted-submission list. */
 export interface VerifiedSolve {
@@ -39,6 +40,8 @@ export class SyncService implements OnModuleDestroy {
   /** Per-user throttle for on-demand verification, to stay polite to LeetCode. */
   private readonly lastQuickSync = new Map<string, number>();
   private readonly quickSyncIntervalMs: number;
+  /** Pause between starting scheduled syncs, to stay polite to LeetCode. */
+  private readonly scheduledSyncGapMs: number;
   /** Background sync jobs still running; awaited on shutdown. */
   private readonly runningJobs = new Set<Promise<void>>();
   /** Concurrent callers for the same user share one LeetCode round-trip. */
@@ -52,6 +55,7 @@ export class SyncService implements OnModuleDestroy {
     config: ConfigService,
   ) {
     this.quickSyncIntervalMs = Number(config.get('LEETCODE_QUICK_SYNC_INTERVAL_MS', 15_000));
+    this.scheduledSyncGapMs = Number(config.get('LEETCODE_RATE_LIMIT_MS', 2_000));
   }
 
   /** Subscribe to newly recorded verified solves. */
@@ -64,6 +68,9 @@ export class SyncService implements OnModuleDestroy {
     const job = await this.prisma.syncJob.create({
       data: { userId, type, status: 'PENDING' },
     });
+    // Count the job as active before anything else awaits, so the
+    // scheduled loop's concurrency check sees it immediately.
+    this.activeSyncs++;
     const run = this.processSyncJob(job.id, userId)
       .catch((err) => this.logger.error(`Sync ${job.id} crashed: ${err}`))
       .finally(() => this.runningJobs.delete(run));
@@ -106,37 +113,46 @@ export class SyncService implements OnModuleDestroy {
     return this.ingestAndPublish(userId, submissions);
   }
 
-  /** Every 30 min: sync all verified linked users. */
+  /**
+   * Every 30 min: sync all verified linked users, at most MAX_CONCURRENT at a
+   * time with a gap between starts. Runs on one instance only.
+   */
   @Cron(CronExpression.EVERY_30_MINUTES)
   async scheduledSync() {
-    this.logger.log('[Cron] Scheduled sync starting');
-    const users = await this.prisma.userProfile.findMany({
-      where: { leetcodeUsername: { not: null }, leetcodeVerified: true },
-      select: { userId: true },
+    await runExclusive(this.prisma, 'scheduled-leetcode-sync', async () => {
+      this.logger.log('[Cron] Scheduled sync starting');
+      const users = await this.prisma.userProfile.findMany({
+        where: { leetcodeUsername: { not: null }, leetcodeVerified: true },
+        select: { userId: true },
+      });
+      for (const { userId } of users) {
+        if (this.activeSyncs >= this.MAX_CONCURRENT) await this.waitForSlot();
+        await this.triggerSync(userId).catch((err) => this.logger.error(`Could not queue sync for ${userId}: ${err}`));
+        if (this.scheduledSyncGapMs > 0) await new Promise((r) => setTimeout(r, this.scheduledSyncGapMs));
+      }
+      this.logger.log(`[Cron] Scheduled sync queued ${users.length} users`);
     });
-    for (const { userId } of users) {
-      if (this.activeSyncs >= this.MAX_CONCURRENT) await this.waitForSlot();
-      this.triggerSync(userId).catch(() => {});
-    }
   }
 
   /** Hourly: break streaks of users whose own midnight has passed without a solve. */
   @Cron(CronExpression.EVERY_HOUR)
   async dailyStreakCheck() {
-    this.logger.log('[Cron] Daily streak check');
-    const streaks = await this.prisma.streak.findMany({
-      where: { currentStreak: { gt: 0 } },
-      select: { userId: true },
+    await runExclusive(this.prisma, 'streak-check', async () => {
+      this.logger.log('[Cron] Streak check');
+      const streaks = await this.prisma.streak.findMany({
+        where: { currentStreak: { gt: 0 } },
+        select: { userId: true },
+      });
+      for (const { userId } of streaks) {
+        await this.streakService.checkAndUpdateStreak(userId);
+      }
     });
-    for (const { userId } of streaks) {
-      await this.streakService.checkAndUpdateStreak(userId);
-    }
   }
 
   // ── Core sync ──────────────────────────────────────────────────
 
+  /** Caller (triggerSync) has already counted this job in activeSyncs. */
   private async processSyncJob(jobId: string, userId: string) {
-    this.activeSyncs++;
     try {
       await this.prisma.syncJob.update({
         where: { id: jobId },

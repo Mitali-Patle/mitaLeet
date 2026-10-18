@@ -4,6 +4,7 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
 import { RANK_ORDER } from './gamification.config';
 import { assertGroupMember } from '../../common/authz/group-membership';
+import { runExclusive } from '../../common/jobs/run-exclusive';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -155,6 +156,10 @@ export class LeaderboardService {
   /** Scheduled refresh + broadcast to active groups. */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async refreshAndBroadcast(): Promise<void> {
+    await runExclusive(this.prisma, 'leaderboard-broadcast', () => this.doRefreshAndBroadcast(), 4 * 60_000);
+  }
+
+  private async doRefreshAndBroadcast(): Promise<void> {
     this.invalidateGlobal();
     // Pre-warm top 50 all-time
     await this.getGlobal('alltime', 50, 0);
