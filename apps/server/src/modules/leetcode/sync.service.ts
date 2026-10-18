@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Difficulty, Prisma } from '@prisma/client';
@@ -29,7 +29,7 @@ type NewSolvesListener = (event: NewSolvesEvent) => Promise<void>;
  * claim. Other modules (XP, races, challenges) react through onNewSolves().
  */
 @Injectable()
-export class SyncService {
+export class SyncService implements OnModuleDestroy {
   private readonly logger = new Logger(SyncService.name);
   private readonly MAX_CONCURRENT = 5;
   private activeSyncs = 0;
@@ -38,6 +38,8 @@ export class SyncService {
   /** Per-user throttle for on-demand verification, to stay polite to LeetCode. */
   private readonly lastQuickSync = new Map<string, number>();
   private readonly quickSyncIntervalMs: number;
+  /** Background sync jobs still running; awaited on shutdown. */
+  private readonly runningJobs = new Set<Promise<void>>();
   /** Concurrent callers for the same user share one LeetCode round-trip. */
   private readonly inFlight = new Map<string, Promise<VerifiedSolve[]>>();
 
@@ -61,10 +63,21 @@ export class SyncService {
     const job = await this.prisma.syncJob.create({
       data: { userId, type, status: 'PENDING' },
     });
-    this.processSyncJob(job.id, userId).catch((err) =>
-      this.logger.error(`Sync ${job.id} crashed: ${err}`),
-    );
+    const run = this.processSyncJob(job.id, userId)
+      .catch((err) => this.logger.error(`Sync ${job.id} crashed: ${err}`))
+      .finally(() => this.runningJobs.delete(run));
+    this.runningJobs.add(run);
     return job;
+  }
+
+  /** On shutdown (deploys send SIGTERM) let in-flight syncs finish, up to 10s. */
+  async onModuleDestroy() {
+    if (this.runningJobs.size === 0) return;
+    this.logger.log(`Waiting for ${this.runningJobs.size} sync job(s) to finish`);
+    await Promise.race([
+      Promise.allSettled([...this.runningJobs]),
+      new Promise((r) => setTimeout(r, 10_000)),
+    ]);
   }
 
   /**

@@ -1,6 +1,6 @@
 import {
   Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger,
-  ConflictException, OnModuleInit,
+  ConflictException, OnModuleInit, OnModuleDestroy, OnApplicationBootstrap,
 } from '@nestjs/common';
 import { RaceRoom } from '@prisma/client';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -15,7 +15,7 @@ const toSecond = (d: Date) => new Date(Math.floor(d.getTime() / 1000) * 1000);
 const COUNTDOWN_SECONDS = 5;
 
 @Injectable()
-export class RaceService implements OnModuleInit {
+export class RaceService implements OnModuleInit, OnApplicationBootstrap, OnModuleDestroy {
   private readonly logger = new Logger(RaceService.name);
   private countdownTimers = new Map<string, NodeJS.Timeout>();
 
@@ -29,6 +29,20 @@ export class RaceService implements OnModuleInit {
   onModuleInit() {
     // A verified solve of the race problem finishes the racer automatically.
     this.sync.onNewSolves((event) => this.finishFromSolves(event));
+  }
+
+  /** Countdown timers live in memory; a restart mid-countdown must not strand the room. */
+  async onApplicationBootstrap() {
+    const stranded = await this.prisma.raceRoom.findMany({
+      where: { status: 'COUNTDOWN' },
+      select: { id: true },
+    });
+    for (const { id } of stranded) await this.activateRace(id);
+  }
+
+  onModuleDestroy() {
+    this.countdownTimers.forEach((t) => clearTimeout(t));
+    this.countdownTimers.clear();
   }
 
   /** Create a new race room. */
@@ -100,10 +114,11 @@ export class RaceService implements OnModuleInit {
   /** Called after countdown — transitions to ACTIVE. */
   private async activateRace(roomId: string) {
     this.countdownTimers.delete(roomId);
-    await this.prisma.raceRoom.update({
-      where: { id: roomId },
+    const activated = await this.prisma.raceRoom.updateMany({
+      where: { id: roomId, status: 'COUNTDOWN' },
       data: { status: 'ACTIVE', startedAt: new Date() },
     });
+    if (activated.count === 0) return;
     this.events.emitToRoom(`race:${roomId}`, WS_EVENTS.RACE_STARTED, { roomId, startedAt: new Date() });
     this.logger.log(`Race ${roomId} started`);
   }

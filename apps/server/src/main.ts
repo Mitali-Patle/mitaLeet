@@ -6,6 +6,9 @@ import { configureApp } from './app.setup';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   configureApp(app);
+  // Run onModuleDestroy hooks on SIGTERM (every deploy) so in-flight work
+  // finishes and DB connections close cleanly.
+  app.enableShutdownHooks();
 
   const port = app.get(ConfigService).get<number>('PORT', 3000);
   await app.listen(port, '0.0.0.0');
