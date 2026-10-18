@@ -4,15 +4,25 @@ How to ship the `prod-readiness` branch to real users, verify it, and roll back.
 
 ## 0. Current state (verified 2026-10-18)
 
-| Component | Where | What was verified | Not verified |
-|---|---|---|---|
-| API (NestJS) | Render web service `mitaleet-server`, `https://mitaleet.onrender.com` | `GET /health` returns 200 after a **42 s** cold start (free-tier spin-down); unauthenticated `/api/v1/users/me` returns 401; HSTS, CSP and nosniff headers present; behind Cloudflare | Database reachability (the old `/health` doesn't check it), sign-in, sync, sockets, push |
-| Web app (Flutter web) | Netlify, `https://mitaleet.netlify.app` | Returns 200 and serves the Flutter build | How it's built and deployed (no `netlify.toml` in the repo) |
-| Database | **Unknown** | — | Provider, plan, backups. **Check this first (§1)** |
-| Android/iOS | Not published | — | — |
-| Chrome extension | Not published | Production build targets the API (`e3348f6`) | Store listing |
+There are **two** deployments. The project owner (Mitali) controls only the second.
 
-**Production is most likely running an old build.** Every push since `809d14f` failed `nest build` (TS7006, fixed in `c96fb51`). Render keeps serving the last successful deploy when a build fails, so the auth "v3" fixes, and everything on this branch, aren't live yet.
+| | Legacy (co-founder's accounts) | **Current, owned** |
+|---|---|---|
+| API | `https://mitaleet.onrender.com`: old build from before `809d14f`, Free tier (42 s cold start) | **`https://mitaleet-97q2.onrender.com`**: branch `prod-readiness`, Render, Singapore |
+| Database | Neon (`us-east-1`), old data plus whatever the legacy server still writes | **Neon (`ap-southeast-1`, Postgres 18.6)**: verified copy of the legacy DB taken 2026-10-18 (every table's exact row count matched) |
+| Web app | `https://mitaleet.netlify.app` (calls the legacy API) | not yet: Firebase authorized domains are managed in the co-founder's Firebase project (§4) |
+| Mobile / extension | — | defaults now point to the owned API (`API_ORIGIN`, `.env.production`) |
+
+**Smoke tests on the owned API** (§5), 2026-10-18:
+- `/health` 200 with `database: ok` (2 ms); `/health/live` 200
+- unauthenticated 401; dev-login 404
+- HSTS, CSP, nosniff and `x-request-id` present
+- CORS allows `https://mitaleet.netlify.app` and rejects other origins; a malformed Google token gives a clean 401
+- **Rate limit:** 30 refresh attempts allowed, then 429. Requests with a forged `CF-Connecting-IP` are refused by Cloudflare at the edge (error 1000) and never reach the app.
+
+Still unverified there: a real Google sign-in, LeetCode sync and sockets from a device, and push notifications.
+
+**Why there were two copies:** the original Render, Railway, Netlify and Neon accounts belong to a co-founder who couldn't be reached. Ask them to add you to (or transfer) those accounts, then decide which deployment is canonical and switch the legacy one off. Two servers running old and new code on separate databases don't interfere with each other.
 
 ## 1. Before deploying: answer three questions in the Render dashboard
 
@@ -78,7 +88,7 @@ The app uses hash routing (`/#/…`), so no SPA redirect rules are needed. Recom
 ## 5. Smoke tests (run after every deploy)
 
 ```bash
-API=https://mitaleet.onrender.com
+API=https://mitaleet-97q2.onrender.com
 curl -s $API/health            # {"success":true,"data":{"status":"ok","database":"ok",...}}
 curl -s $API/health/live       # {"success":true,"data":{"status":"ok",...}}
 curl -s -o /dev/null -w "%{http_code}\n" $API/api/v1/users/me                     # 401

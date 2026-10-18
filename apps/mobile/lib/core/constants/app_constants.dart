@@ -8,7 +8,7 @@ abstract final class AppConstants {
   //   flutter build apk --dart-define=API_ORIGIN=https://your-api.onrender.com
   static const String apiOrigin = String.fromEnvironment(
     'API_ORIGIN',
-    defaultValue: 'https://mitaleet.onrender.com',
+    defaultValue: 'https://mitaleet-97q2.onrender.com',
   );
   static const String baseUrl = '$apiOrigin/api/v1';
   static const String wsUrl = apiOrigin;

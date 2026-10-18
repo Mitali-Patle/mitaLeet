@@ -16,7 +16,7 @@ For whoever is on call (today: the founder). Keep it short, keep it current.
 
 ### Set up first (about 30 minutes, free tiers)
 
-1. **Uptime alert:** in UptimeRobot or Better Stack, monitor `https://mitaleet.onrender.com/health` every 5 minutes and alert your phone after 2 failures. This also stops a free instance from sleeping (cron jobs only run while the instance is awake), but upgrading the instance is the real fix.
+1. **Uptime alert:** in UptimeRobot or Better Stack, monitor `https://mitaleet-97q2.onrender.com/health` every 5 minutes and alert your phone after 2 failures. This also stops a free instance from sleeping (cron jobs only run while the instance is awake), but upgrading the instance is the real fix.
 2. **Error tracking:** add a Sentry project with `@sentry/nestjs` for the server and Firebase Crashlytics for Flutter. Report only 5xx and crashes, and scrub request bodies.
 3. **Render notifications:** turn on email/Slack for deploy failures (Settings → Notifications).
 
@@ -34,7 +34,7 @@ Don't page on CPU blips or single 500s.
 
 ## 1. Service outage
 
-1. Open `https://mitaleet.onrender.com/health`.
+1. Open `https://mitaleet-97q2.onrender.com/health`.
    - **No response or a Render error page:** check Render status (status.render.com) and the service's Events tab. On the Free plan, the first request after 15 idle minutes takes about a minute; that's not an outage.
    - **503 with `database: unreachable`:** go to §3.
 2. If a deploy happened in the last hour: **roll back first, debug second** (Render → Events → previous deploy → Rollback).

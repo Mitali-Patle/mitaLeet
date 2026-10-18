@@ -109,7 +109,7 @@ No migrations were added, so this release can be rolled back by code alone. The 
 
 ## 6. Deployment status
 
-**Classification: D, "operational in a limited or unverified environment".** The old build answers at `https://mitaleet.onrender.com` (health 200 after a 42 s cold start; auth guard active), and the Flutter web app is served at `https://mitaleet.netlify.app`. This branch isn't deployed, and no production URL has been verified against the new checks. Steps: [DEPLOYMENT_GUIDE](DEPLOYMENT_GUIDE.md).
+**Owned deployment: `https://mitaleet-97q2.onrender.com` (Render, Singapore) on a verified copy of the production database (Neon, Singapore).** The smoke tests pass there: health with the database, auth guard, dev-login off, security headers, CORS, and rate limiting with spoof resistance (see DEPLOYMENT_GUIDE §0). Classification **D, "operational, limited verification"**: real sign-in, sync and sockets from a device haven't been exercised yet. The legacy deployment (`https://mitaleet.onrender.com`, old build, in the co-founder's accounts) still runs and serves the web app at `https://mitaleet.netlify.app`.
 
 ## 7. Prioritized backlog
 
@@ -148,10 +148,10 @@ Effort: S (< ½ day), M (1–2 days), L (3–5 days).
 |---|---|---|
 | 1 Functionality | NOT VERIFIED | 90 e2e tests pass locally; not run on devices or in production |
 | 2 Security | BLOCKED | 0 open Critical; 1 open High needs your action (SEC-13) |
-| 3 Data safety | BLOCKED | DB plan unknown; no restore verified |
+| 3 Data safety | PASS (initial) | Database moved to an owned Neon project; backup dump restored into a scratch DB and the new DB with exact per-table row-count matches. Ongoing: enable and verify Neon's restore window, plus a quarterly drill. |
 | 4 Quality | PASS | GitHub Actions run 39126927617 on PR #3: server (typecheck, build, unit, 90 e2e, drift check), extension, Flutter analyze/test/APK all green |
 | 5 Configuration | NOT VERIFIED | Documented and secrets clean; production values not inspected |
-| 6 Deployment | NOT VERIFIED | Documented; Docker image verified locally; not deployed |
+| 6 Deployment | PASS (API) | Deployed from `prod-readiness` to `https://mitaleet-97q2.onrender.com`; smoke tests pass, including the rate limit. Web app not yet moved. |
 | 7 Operations | FAIL | No error tracking or alerting yet |
 | 8 Performance | NOT VERIFIED | No load test |
 | 9 Privacy | FAIL | Deletion done; no privacy policy yet |

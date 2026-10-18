@@ -83,7 +83,7 @@ The API URL is set in `lib/core/constants/app_constants.dart` (defaults to produ
 cd apps/extension
 npm ci
 npm run dev          # uses .env.development  -> http://localhost:3000
-npm run build        # uses .env.production   -> https://mitaleet.onrender.com
+npm run build        # uses .env.production   -> https://mitaleet-97q2.onrender.com
 ```
 
 Load `build/chrome-mv3-dev` (or `-prod`) via `chrome://extensions` → Developer mode → Load unpacked. In the app, go to **Profile → Extension token** to generate a token (valid 90 days, can only report solves) and paste it into the extension popup.
