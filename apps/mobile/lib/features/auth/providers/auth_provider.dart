@@ -55,7 +55,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required this.storage,
     required this.apiClient,
     required this.socketService,
-  }) : super(const AuthState());
+  }) : super(const AuthState()) {
+    // When the API can no longer renew the session, return to the login screen.
+    apiClient.onSessionExpired = () {
+      socketService.disconnect();
+      state = const AuthState();
+    };
+  }
 
   final SecureStorage storage;
   final ApiClient apiClient;
