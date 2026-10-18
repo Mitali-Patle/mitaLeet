@@ -3,11 +3,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import '../constants/app_constants.dart';
-import '../storage/secure_storage.dart';
+import '../network/api_client.dart';
 import 'socket_events.dart';
 
 /// Manages the Socket.IO connection lifecycle, reconnection, and heartbeat.
 class SocketService {
+  SocketService({required this.tokenProvider});
+
+  /// Returns a currently valid access token (refreshing it if needed), or null.
+  final Future<String?> Function() tokenProvider;
+
   io.Socket? _socket;
   Timer? _heartbeatTimer;
   bool _isConnected = false;
@@ -21,22 +26,24 @@ class SocketService {
   Future<void> connect() async {
     if (_isConnected) return;
 
-    final storage = SecureStorage();
-    final token = await storage.getAccessToken();
-    if (token == null) return;
+    if (await tokenProvider() == null) return;
 
     _socket = io.io(
       AppConstants.wsUrl,
       io.OptionBuilder()
           .setTransports(['websocket'])
-          .setAuth({'token': token})
-          .enableAutoConnect()
+          .disableAutoConnect()
           .enableReconnection()
           .setReconnectionAttempts(10)
           .setReconnectionDelay(2000)
           .setReconnectionDelayMax(10000)
           .build(),
     );
+    // Evaluated on every (re)connect: access tokens live 15 minutes, so a
+    // token captured once would make every later reconnect fail.
+    _socket!.auth = (void Function(Map<String, dynamic>) send) async {
+      send({'token': await tokenProvider() ?? ''});
+    };
 
     _socket!.onConnect((_) {
       _isConnected = true;
@@ -66,6 +73,8 @@ class SocketService {
         _socket!.on(entry.key, callback);
       }
     }
+
+    _socket!.connect();
   }
 
   /// Disconnect and cleanup.
@@ -132,5 +141,6 @@ class SocketService {
 
 /// Global SocketService provider.
 final socketServiceProvider = Provider<SocketService>((ref) {
-  return SocketService();
+  final api = ref.watch(apiClientProvider);
+  return SocketService(tokenProvider: api.freshAccessToken);
 });

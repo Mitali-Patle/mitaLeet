@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
@@ -52,6 +54,26 @@ class ApiClient {
         },
       ),
     );
+  }
+
+  /// A usable access token: the stored one, or a refreshed one if it expires
+  /// within a minute. Used by the WebSocket, which cannot react to HTTP 401s.
+  Future<String?> freshAccessToken() async {
+    final token = await storage.getAccessToken();
+    if (token == null) return null;
+    if (!_expiresWithin(token, const Duration(seconds: 60))) return token;
+    return _refreshAccessToken();
+  }
+
+  static bool _expiresWithin(String jwt, Duration margin) {
+    try {
+      final payload = jwt.split('.')[1];
+      final claims = jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(payload))));
+      final exp = DateTime.fromMillisecondsSinceEpoch((claims['exp'] as int) * 1000);
+      return exp.isBefore(DateTime.now().add(margin));
+    } catch (_) {
+      return true;
+    }
   }
 
   /// Called when the session can no longer be renewed (user must sign in again).
