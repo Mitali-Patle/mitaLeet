@@ -15,7 +15,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: CORS_ORIGINS
-        value: https://mitali.netlify.app
+        value: https://mitaleet.netlify.app
       - key: JWT_ACCESS_EXPIRATION
         value: 15m
       - key: JWT_REFRESH_EXPIRES_IN

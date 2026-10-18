@@ -7,7 +7,7 @@ How to ship the `prod-readiness` branch to real users, verify it, and roll back.
 | Component | Where | What was verified | Not verified |
 |---|---|---|---|
 | API (NestJS) | Render web service `mitaleet-server`, `https://mitaleet.onrender.com` | `GET /health` returns 200 after a **42 s** cold start (free-tier spin-down); unauthenticated `/api/v1/users/me` returns 401; HSTS, CSP and nosniff headers present; behind Cloudflare | Database reachability (the old `/health` doesn't check it), sign-in, sync, sockets, push |
-| Web app (Flutter web) | Netlify, `https://mitali.netlify.app` | Returns 200 and serves the Flutter build | How it's built and deployed (no `netlify.toml` in the repo) |
+| Web app (Flutter web) | Netlify, `https://mitaleet.netlify.app` | Returns 200 and serves the Flutter build | How it's built and deployed (no `netlify.toml` in the repo) |
 | Database | **Unknown** | — | Provider, plan, backups. **Check this first (§1)** |
 | Android/iOS | Not published | — | — |
 | Chrome extension | Not published | Production build targets the API (`e3348f6`) | Store listing |
@@ -35,7 +35,7 @@ Set these in Render → Environment. Never commit values to git.
 | `JWT_REFRESH_EXPIRES_IN` | yes | `30d` |
 | `GOOGLE_CLIENT_ID` | yes | Google OAuth **Web** client ID (the audience of mobile ID tokens) |
 | `FIREBASE_PROJECT_ID` | yes | Needed to verify Firebase ID tokens from the web app |
-| `CORS_ORIGINS` | yes | `https://mitali.netlify.app` (comma-separated if you add a custom domain) |
+| `CORS_ORIGINS` | yes | `https://mitaleet.netlify.app` (comma-separated if you add a custom domain) |
 | `TRUST_PROXY_HOPS` | yes | `1` on Render. Use `2` if you put Cloudflare proxying in front of a custom domain. |
 | `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | for push | Service-account values; keep the `\n` sequences in the key. Push is disabled when absent. |
 | `LEETCODE_RATE_LIMIT_MS` | no | Default `2000` (gap between scheduled syncs) |
