@@ -36,7 +36,8 @@ Set these in Render → Environment. Never commit values to git.
 | `GOOGLE_CLIENT_ID` | yes | Google OAuth **Web** client ID (the audience of mobile ID tokens) |
 | `FIREBASE_PROJECT_ID` | yes | Needed to verify Firebase ID tokens from the web app |
 | `CORS_ORIGINS` | yes | `https://mitaleet.netlify.app` (comma-separated if you add a custom domain) |
-| `TRUST_PROXY_HOPS` | yes | `2` on Render: requests pass Cloudflare, then Render's load balancer (verified via the `cf-ray` header). With `1`, every request looks like a different Cloudflare IP and rate limits never trigger. |
+| `CLIENT_IP_HEADER` | yes (Render) | `cf-connecting-ip`. Cloudflare (in front of every `*.onrender.com` service) puts the real client IP there and overwrites client-sent values. Without it, rate limits never trigger on Render (verified on the live service). |
+| `TRUST_PROXY_HOPS` | yes | `2` on Render. Only a fallback for logs when `CLIENT_IP_HEADER` is absent; proxy-hop counting alone proved unreliable on Render. |
 | `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | for push | Service-account values; keep the `\n` sequences in the key. Push is disabled when absent. |
 | `LEETCODE_RATE_LIMIT_MS` | no | Default `2000` (gap between scheduled syncs) |
 | `LEETCODE_QUICK_SYNC_INTERVAL_MS` | no | Default `15000` (per-user on-demand check throttle) |
@@ -50,7 +51,7 @@ The API builds with `npm ci --include=dev && npm run build` and starts with `npm
 
 1. **Make sure CI is green** on the `prod-readiness` branch (GitHub → Actions). The workflow runs typecheck, build, unit and e2e tests on Postgres, the migration drift check, the extension build, and the Flutter analyze/test/APK steps.
 2. **Back up the database** (§7).
-3. **Set or confirm the environment variables** (§2). In particular `JWT_ACCESS_EXPIRATION=15m` and `TRUST_PROXY_HOPS=2`.
+3. **Set or confirm the environment variables** (§2). In particular `JWT_ACCESS_EXPIRATION=15m`, `CLIENT_IP_HEADER=cf-connecting-ip` and `TRUST_PROXY_HOPS=2`.
 4. **Merge** `prod-readiness` → `main` with a pull request. Render auto-deploys `main`; if auto-deploy is off, use Dashboard → Manual Deploy → Deploy latest commit.
 5. **Watch the deploy log.** Expect `prisma migrate deploy` with "No pending migrations to apply" (this branch adds **no** migrations), then `Nest application successfully started`. Render only switches traffic once `/health` returns 200, and `/health` now checks the database.
 6. **Run the smoke tests** (§5).

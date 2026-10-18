@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { randomUUID } from 'crypto';
+import { isIP } from 'net';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -17,6 +18,18 @@ export function configureApp(app: INestApplication): void {
   // Behind Render/Cloudflare the client IP arrives in X-Forwarded-For; trust that
   // many proxy hops so rate limits and logs see real client IPs.
   (app as NestExpressApplication).set('trust proxy', Number(config.get('TRUST_PROXY_HOPS', 1)));
+
+  // Client IP for rate limiting and logs. Behind Cloudflare (all *.onrender.com
+  // traffic) set CLIENT_IP_HEADER=cf-connecting-ip: Cloudflare overwrites that
+  // header with the real client IP, so clients cannot forge it. Counting proxy
+  // hops (trust proxy) proved unreliable on Render. Leave it unset on hosts
+  // without such a proxy, where any client could send the header.
+  const clientIpHeader = config.get<string>('CLIENT_IP_HEADER', '').trim().toLowerCase();
+  app.use((req: any, _res: any, next: () => void) => {
+    const fromHeader = clientIpHeader ? String(req.headers[clientIpHeader] ?? '').split(',')[0].trim() : '';
+    req.clientIp = fromHeader && isIP(fromHeader) ? fromHeader : req.ip;
+    next();
+  });
 
   // Request ID: accept a sane incoming X-Request-Id (e.g. from a proxy) or
   // create one; echoed in the response and in every log line for the request.

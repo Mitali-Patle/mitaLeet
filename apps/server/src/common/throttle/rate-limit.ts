@@ -14,7 +14,7 @@ export class UserOrIpThrottlerGuard extends ThrottlerGuard {
   }
 
   protected async getTracker(req: Record<string, any>): Promise<string> {
-    return req.user?.sub ? `user:${req.user.sub}` : `ip:${req.ip}`;
+    return req.user?.sub ? `user:${req.user.sub}` : `ip:${req.clientIp ?? req.ip}`;
   }
 }
 

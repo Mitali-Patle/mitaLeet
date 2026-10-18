@@ -44,7 +44,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // interceptor (guards run first), so record them here for security review.
     if (status === 401 || status === 403 || status === 429) {
       this.logger.warn(
-        `${request.method} ${request.url.split('?')[0]} ${status} rid=${(request as any).id ?? '-'} ip=${request.ip}`,
+        `${request.method} ${request.url.split('?')[0]} ${status} rid=${(request as any).id ?? '-'} ip=${(request as any).clientIp ?? request.ip}`,
       );
     }
 

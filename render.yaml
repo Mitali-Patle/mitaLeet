@@ -20,7 +20,10 @@ services:
         value: 15m
       - key: JWT_REFRESH_EXPIRES_IN
         value: 30d
-      # onrender.com traffic passes Cloudflare, then Render's load balancer
+      # onrender.com traffic passes Cloudflare, which sets CF-Connecting-IP to
+      # the real client IP (clients cannot forge it). Used for rate limits.
+      - key: CLIENT_IP_HEADER
+        value: cf-connecting-ip
       - key: TRUST_PROXY_HOPS
         value: "2"
       - key: DATABASE_URL
