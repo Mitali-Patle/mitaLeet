@@ -20,6 +20,8 @@ export const WS_EVENTS = {
   LEAVE_GROUP: 'leave_group',
   STATUS_UPDATE: 'status_update',
   HEARTBEAT: 'heartbeat',
+  JOIN_ROOM: 'join_room',   // { room: 'race:<id>' } — race participants only
+  LEAVE_ROOM: 'leave_room',
 
   // ── Server → Client ────────────────────────────────────
   MEMBER_STATUS: 'member_status',
@@ -188,6 +190,35 @@ export class EventsGateway
       userId: user.sub,
       groupId: data.groupId,
     });
+  }
+
+  /** Subscribe to a race room's live events. Only that race's participants may join. */
+  @SubscribeMessage(WS_EVENTS.JOIN_ROOM)
+  async handleJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { room: string },
+  ) {
+    const user = (client as any).user as JwtPayload | undefined;
+    const match = typeof data?.room === 'string' ? /^race:([0-9a-f-]{36})$/.exec(data.room) : null;
+    if (!user || !match) return { ok: false };
+
+    const participant = await this.prisma.raceParticipant.findUnique({
+      where: { userId_roomId: { userId: user.sub, roomId: match[1] } },
+      select: { id: true },
+    });
+    if (!participant) return { ok: false };
+
+    client.join(data.room);
+    return { ok: true };
+  }
+
+  @SubscribeMessage(WS_EVENTS.LEAVE_ROOM)
+  handleLeaveRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { room: string },
+  ) {
+    if (typeof data?.room === 'string' && data.room.startsWith('race:')) client.leave(data.room);
+    return { ok: true };
   }
 
   @SubscribeMessage(WS_EVENTS.STATUS_UPDATE)
