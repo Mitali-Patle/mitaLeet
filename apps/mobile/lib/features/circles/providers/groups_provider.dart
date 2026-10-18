@@ -145,11 +145,14 @@ class GroupsNotifier extends StateNotifier<GroupsState> {
     }
   }
 
-  Future<bool> createGroup(String name) async {
+  Future<bool> createGroup(String name, {String? description}) async {
     if (name.trim().isEmpty) return false;
     state = state.copyWith(isCreating: true, clearMessages: true);
     try {
-      await _api.post(ApiEndpoints.groups, data: {'name': name.trim()});
+      await _api.post(ApiEndpoints.groups, data: {
+        'name': name.trim(),
+        if (description != null && description.trim().isNotEmpty) 'description': description.trim(),
+      });
       await loadGroups();
       state = state.copyWith(isCreating: false, successMessage: 'Squad created!');
       return true;

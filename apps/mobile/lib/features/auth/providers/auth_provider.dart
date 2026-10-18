@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../../../core/storage/secure_storage.dart';
 import '../../../core/network/api_client.dart';
@@ -124,6 +125,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           );
           // Connect WebSocket
           await socketService.connect();
+          _syncTimezone();
           return;
         }
       } catch (_) {
@@ -228,6 +230,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       await socketService.connect();
+      _syncTimezone();
     } catch (e) {
       debugPrint('[Auth] _signInWithIdToken error: $e');
       String msg = e.toString();
@@ -273,12 +276,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
 
       await socketService.connect();
+      _syncTimezone();
     } catch (e) {
       debugPrint('[Auth] devBypass failed: $e');
       state = state.copyWith(
         isLoading: false,
         error: 'Dev login failed: ${e.toString().replaceAll('Exception:', '').trim()}',
       );
+    }
+  }
+
+  /// Onboarding finished: stop routing this user to the onboarding screen.
+  void completeOnboarding() {
+    state = state.copyWith(isNewUser: false);
+  }
+
+  /// Tell the server the device's IANA timezone so streaks and "today"
+  /// follow the user's local midnight. Best effort; retried on next launch.
+  Future<void> _syncTimezone() async {
+    try {
+      final tz = await FlutterTimezone.getLocalTimezone();
+      await apiClient.put(ApiEndpoints.usersMeProfile, data: {'timezone': tz.identifier});
+    } catch (e) {
+      debugPrint('[Auth] timezone sync skipped: $e');
     }
   }
 

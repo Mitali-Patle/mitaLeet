@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -13,14 +13,17 @@ import '../../providers/leetcode_provider.dart';
 
 /// LeetCode account linking screen.
 class LeetCodeLinkScreen extends ConsumerStatefulWidget {
-  const LeetCodeLinkScreen({super.key});
+  const LeetCodeLinkScreen({super.key, this.initialUsername});
+
+  /// Prefills the username field (e.g. from onboarding).
+  final String? initialUsername;
 
   @override
   ConsumerState<LeetCodeLinkScreen> createState() => _LeetCodeLinkScreenState();
 }
 
 class _LeetCodeLinkScreenState extends ConsumerState<LeetCodeLinkScreen> {
-  final _controller = TextEditingController();
+  late final _controller = TextEditingController(text: widget.initialUsername);
 
   /// Set once the server has issued a verification code for [_pendingUsername].
   String? _code;
