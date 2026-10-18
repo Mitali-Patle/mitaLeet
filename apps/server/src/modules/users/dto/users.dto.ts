@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUrl, Length, MinLength, MaxLength, Matches } from 'class-validator';
+import { IsOptional, IsString, IsTimeZone, IsUrl, Length, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -14,6 +14,11 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(160)
   bio?: string;
+
+  /** IANA zone, e.g. "Asia/Kolkata"; streaks and "today" follow it. */
+  @IsOptional()
+  @IsTimeZone()
+  timezone?: string;
 
   @IsOptional()
   @IsString()

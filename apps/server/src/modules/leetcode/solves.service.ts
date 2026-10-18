@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { StreakService } from './streak.service';
 import { SyncService } from './sync.service';
+import { dateFromKey, getUserTimeZone, localDateKey } from '../../common/time/user-day';
 
 @Injectable()
 export class SolvesService {
@@ -25,14 +26,15 @@ export class SolvesService {
 
   /** Get solve stats breakdown. */
   async getStats(userId: string) {
+    const today = dateFromKey(localDateKey(new Date(), await getUserTimeZone(this.prisma, userId)));
     const [profile, streak, todaySolves] = await Promise.all([
       this.prisma.userProfile.findUnique({
         where: { userId },
         select: { xp: true, totalSolves: true, easySolves: true, mediumSolves: true, hardSolves: true },
       }),
       this.streakService.getStreak(userId),
-      this.prisma.dailySolve.findFirst({
-        where: { userId, date: { gte: this.todayStart() } },
+      this.prisma.dailySolve.findUnique({
+        where: { userId_date: { userId, date: today } },
       }),
     ]);
 
@@ -108,9 +110,5 @@ export class SolvesService {
       select: { id: true },
     }));
     return { created, verified };
-  }
-
-  private todayStart() {
-    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
   }
 }

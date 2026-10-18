@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
 import { NewSolvesEvent, SyncService } from '../leetcode/sync.service';
+import { getUserTimeZone, startOfLocalDay } from '../../common/time/user-day';
 import {
   XP_REWARDS, levelForXP, levelProgress, rankForXP,
   ACHIEVEMENTS, AchievementStats,
@@ -30,8 +31,7 @@ export class XPService implements OnModuleInit {
    * older solves imported on first link earn base XP only, in one award.
    */
   async awardForVerifiedSolves({ userId, solves }: NewSolvesEvent): Promise<void> {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = startOfLocalDay(new Date(), await getUserTimeZone(this.prisma, userId));
 
     const older = solves.filter((s) => s.solvedAt < todayStart);
     const today = solves

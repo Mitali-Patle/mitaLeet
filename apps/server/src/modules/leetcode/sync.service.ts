@@ -6,6 +6,7 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { LeetCodeClient, LeetCodeSubmission } from './leetcode.client';
 import { StreakService } from './streak.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
+import { dateFromKey, getUserTimeZone, localDateKey, startOfLocalDay } from '../../common/time/user-day';
 
 /** A solve that was just recorded from LeetCode's own accepted-submission list. */
 export interface VerifiedSolve {
@@ -119,8 +120,8 @@ export class SyncService implements OnModuleDestroy {
     }
   }
 
-  /** Midnight UTC: check for broken streaks. */
-  @Cron('0 0 * * *')
+  /** Hourly: break streaks of users whose own midnight has passed without a solve. */
+  @Cron(CronExpression.EVERY_HOUR)
   async dailyStreakCheck() {
     this.logger.log('[Cron] Daily streak check');
     const streaks = await this.prisma.streak.findMany({
@@ -198,7 +199,8 @@ export class SyncService implements OnModuleDestroy {
     userId: string,
     submissions: LeetCodeSubmission[],
   ): Promise<VerifiedSolve[]> {
-    const { newSolves, hasTodaySolve, mostRecentSolveAt } = await this.ingestSubmissions(userId, submissions);
+    const tz = await getUserTimeZone(this.prisma, userId);
+    const { newSolves, hasTodaySolve, mostRecentSolveAt } = await this.ingestSubmissions(userId, submissions, tz);
 
     // Only fire recordSolve for genuine today-solves.
     // Historical back-fills (first sync) must not mark today as solved.
@@ -210,7 +212,7 @@ export class SyncService implements OnModuleDestroy {
       await this.streakService.anchorLastSolveDate(userId, mostRecentSolveAt);
     }
 
-    await this.updateDailySolves(userId);
+    await this.updateDailySolves(userId, tz);
 
     if (newSolves.length > 0) {
       await this.emitActivities(userId, newSolves);
@@ -223,13 +225,12 @@ export class SyncService implements OnModuleDestroy {
     return newSolves;
   }
 
-  private async ingestSubmissions(userId: string, subs: LeetCodeSubmission[]) {
+  private async ingestSubmissions(userId: string, subs: LeetCodeSubmission[], tz: string) {
     const newSolves: VerifiedSolve[] = [];
     let hasTodaySolve = false;
     let mostRecentSolveAt: Date | null = null;
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = startOfLocalDay(new Date(), tz);
 
     for (const sub of subs) {
       const solvedAt = new Date(sub.timestamp * 1000);
@@ -309,9 +310,13 @@ export class SyncService implements OnModuleDestroy {
     }
   }
 
-  private async updateDailySolves(userId: string) {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const solves = await this.prisma.solve.findMany({ where: { userId, solvedAt: { gte: today } } });
+  /** Today's counters, where "today" is the user's local calendar day. */
+  private async updateDailySolves(userId: string, tz: string) {
+    const now = new Date();
+    const today = dateFromKey(localDateKey(now, tz));
+    const solves = await this.prisma.solve.findMany({
+      where: { userId, solvedAt: { gte: startOfLocalDay(now, tz) } },
+    });
     if (!solves.length) return;
     await this.prisma.dailySolve.upsert({
       where: { userId_date: { userId, date: today } },

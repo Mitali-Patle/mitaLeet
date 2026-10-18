@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
+import { addDaysToKey, dateFromKey, getUserTimeZone, localDateKey } from '../../common/time/user-day';
 
 @Injectable()
 export class StreakService {
@@ -13,20 +14,20 @@ export class StreakService {
 
   /**
    * Record a solve for streak purposes.
-   * Timezone-aware: uses UTC date boundaries.
+   * Days are the user's own calendar days (UserProfile.timezone).
    */
   async recordSolve(userId: string): Promise<void> {
-    const streak = await this.getOrCreate(userId);
+    const [streak, tz] = await Promise.all([this.getOrCreate(userId), getUserTimeZone(this.prisma, userId)]);
     const now = new Date();
-    const today = this.toDateOnly(now);
+    const today = localDateKey(now, tz);
     const lastDate = streak.lastSolveDate
-      ? this.toDateOnly(streak.lastSolveDate)
+      ? localDateKey(streak.lastSolveDate, tz)
       : null;
 
     // Already solved today — no-op
-    if (lastDate && lastDate === today) return;
+    if (lastDate && lastDate >= today) return;
 
-    const yesterday = this.toDateOnly(new Date(now.getTime() - 86_400_000));
+    const yesterday = addDaysToKey(today, -1);
     let newStreak: number;
     let type: 'STREAK_EXTENDED' | 'STREAK_BROKEN' | null = null;
 
@@ -77,9 +78,10 @@ export class StreakService {
     const streak = await this.prisma.streak.findUnique({ where: { userId } });
     if (!streak || streak.currentStreak === 0) return;
 
-    const yesterday = this.toDateOnly(new Date(Date.now() - 86_400_000));
+    const tz = await getUserTimeZone(this.prisma, userId);
+    const yesterday = addDaysToKey(localDateKey(new Date(), tz), -1);
     const lastDate = streak.lastSolveDate
-      ? this.toDateOnly(streak.lastSolveDate)
+      ? localDateKey(streak.lastSolveDate, tz)
       : null;
 
     if (lastDate && lastDate < yesterday) {
@@ -128,10 +130,10 @@ export class StreakService {
 
   /** Get full streak info. */
   async getStreak(userId: string) {
-    const streak = await this.getOrCreate(userId);
-    const today = this.toDateOnly(new Date());
+    const [streak, tz] = await Promise.all([this.getOrCreate(userId), getUserTimeZone(this.prisma, userId)]);
+    const today = localDateKey(new Date(), tz);
     const lastDate = streak.lastSolveDate
-      ? this.toDateOnly(streak.lastSolveDate)
+      ? localDateKey(streak.lastSolveDate, tz)
       : null;
 
     return {
@@ -143,9 +145,8 @@ export class StreakService {
 
   /** Get last N days of daily solve data for heatmap. */
   async getDailySolves(userId: string, days = 90) {
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    since.setHours(0, 0, 0, 0);
+    const tz = await getUserTimeZone(this.prisma, userId);
+    const since = dateFromKey(addDaysToKey(localDateKey(new Date(), tz), -days));
 
     return this.prisma.dailySolve.findMany({
       where: { userId, date: { gte: since } },
@@ -159,9 +160,5 @@ export class StreakService {
     const existing = await this.prisma.streak.findUnique({ where: { userId } });
     if (existing) return existing;
     return this.prisma.streak.create({ data: { userId } });
-  }
-
-  private toDateOnly(date: Date): string {
-    return date.toISOString().split('T')[0]; // "YYYY-MM-DD"
   }
 }

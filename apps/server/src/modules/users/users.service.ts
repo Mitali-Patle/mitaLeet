@@ -74,6 +74,7 @@ export class UsersService {
       data: {
         ...(dto.username && { username: dto.username }),
         ...(dto.bio !== undefined && { bio: dto.bio }),
+        ...(dto.timezone && { timezone: dto.timezone }),
       },
       include: {
         user: {
