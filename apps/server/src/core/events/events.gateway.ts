@@ -337,7 +337,13 @@ export class EventsGateway
       client.handshake?.headers?.authorization?.replace('Bearer ', '');
     if (!token) return null;
     try {
-      return await this.jwtService.verifyAsync<JwtPayload>(token);
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+      // Reject tokens whose session was logged out.
+      const session = await this.prisma.userSession.findUnique({
+        where: { id: payload.sessionId ?? '' },
+        select: { expiresAt: true },
+      });
+      return session && session.expiresAt > new Date() ? payload : null;
     } catch {
       return null;
     }

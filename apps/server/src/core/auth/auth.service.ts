@@ -1,20 +1,23 @@
 import {
   Injectable,
   UnauthorizedException,
+  NotFoundException,
   Logger,
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { createVerify, createPublicKey } from 'crypto';
+import { createHash, createPublicKey, createVerify, randomBytes } from 'crypto';
 import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload, TokenPair } from './types';
 import { GoogleAuthDto, RefreshTokenDto } from './dto/auth.dto';
 
 // ── Cert URLs ─────────────────────────────────────────────────────────────────
-// Both paths do a fresh HTTPS fetch on every auth request, bypassing
-// google-auth-library / firebase-admin cert caches that fail on some hosts.
+// Fetched directly (not via google-auth-library / firebase-admin, whose caches
+// returned empty results on some hosts) and cached per Cache-Control max-age.
+const CERT_FETCH_TIMEOUT_MS = 5_000;
+const CERT_DEFAULT_TTL_MS = 60 * 60_000;
 const FIREBASE_CERT_URL =
   'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
 const GOOGLE_CERT_URL =
@@ -22,14 +25,14 @@ const GOOGLE_CERT_URL =
 
 interface FirebasePayload {
   iss: string; aud: string; sub: string; user_id: string;
-  email?: string; name?: string; picture?: string;
+  email?: string; email_verified?: boolean; name?: string; picture?: string;
   exp: number; iat: number; auth_time: number;
   firebase?: { identities?: { 'google.com'?: string[] }; sign_in_provider?: string };
 }
 
 interface GooglePayload {
   iss: string; aud: string; sub: string;
-  email?: string; name?: string; picture?: string;
+  email?: string; email_verified?: boolean | string; name?: string; picture?: string;
   exp: number; iat: number;
 }
 
@@ -38,6 +41,7 @@ interface JwkKey { kty: string; kid: string; n: string; e: string; alg: string; 
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
+  private readonly certCache = new Map<string, { body: unknown; expiresAt: number }>();
 
   constructor(
     private prisma: PrismaService,
@@ -88,6 +92,10 @@ export class AuthService implements OnModuleInit {
       const decoded = await this.verifyFirebaseIdToken(dto.idToken, projectId);
 
       if (!decoded.email) throw new UnauthorizedException('Firebase token has no email claim');
+      if (decoded.email_verified !== true) throw new UnauthorizedException('Email address is not verified');
+      if (decoded.firebase?.sign_in_provider !== 'google.com') {
+        throw new UnauthorizedException('Only Google sign-in is supported');
+      }
 
       const googleIds = decoded.firebase?.identities?.['google.com'] ?? [];
       googleId = googleIds[0] ?? decoded.sub;
@@ -100,6 +108,9 @@ export class AuthService implements OnModuleInit {
       const decoded  = await this.verifyGoogleIdToken(dto.idToken, clientId);
 
       if (!decoded.email) throw new UnauthorizedException('Google token has no email claim');
+      if (decoded.email_verified !== true && decoded.email_verified !== 'true') {
+        throw new UnauthorizedException('Email address is not verified');
+      }
 
       email    = decoded.email;
       name     = decoded.name;
@@ -145,15 +156,10 @@ export class AuthService implements OnModuleInit {
   ): Promise<FirebasePayload> {
     const { header, payload, signingInput, signature } = this.decodeJwt<FirebasePayload>(idToken);
 
-    // Fetch PEM certs (map of kid → PEM string).
-    let certs: Record<string, string>;
-    try {
-      const res = await fetch(FIREBASE_CERT_URL, { headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      certs = (await res.json()) as Record<string, string>;
-    } catch (err) {
-      this.logger.error(`Firebase cert fetch failed: ${(err as Error).message}`);
-      throw new UnauthorizedException('Could not fetch Firebase public certs');
+    // PEM certs (map of kid → PEM string); refetch once if the kid is new (key rotation).
+    let certs = await this.fetchCerts<Record<string, string>>(FIREBASE_CERT_URL, 'Firebase');
+    if (!certs[header.kid]) {
+      certs = await this.fetchCerts<Record<string, string>>(FIREBASE_CERT_URL, 'Firebase', true);
     }
 
     const cert = certs[header.kid];
@@ -192,15 +198,10 @@ export class AuthService implements OnModuleInit {
   ): Promise<GooglePayload> {
     const { header, payload, signingInput, signature } = this.decodeJwt<GooglePayload>(idToken);
 
-    // Fetch JWK cert set.
-    let jwks: { keys: JwkKey[] };
-    try {
-      const res = await fetch(GOOGLE_CERT_URL, { headers: { Accept: 'application/json' } });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      jwks = (await res.json()) as { keys: JwkKey[] };
-    } catch (err) {
-      this.logger.error(`Google cert fetch failed: ${(err as Error).message}`);
-      throw new UnauthorizedException('Could not fetch Google public certs');
+    // JWK set; refetch once if the kid is new (key rotation).
+    let jwks = await this.fetchCerts<{ keys: JwkKey[] }>(GOOGLE_CERT_URL, 'Google');
+    if (!jwks.keys?.some((k) => k.kid === header.kid)) {
+      jwks = await this.fetchCerts<{ keys: JwkKey[] }>(GOOGLE_CERT_URL, 'Google', true);
     }
 
     const jwk = jwks.keys?.find(k => k.kid === header.kid);
@@ -241,9 +242,20 @@ export class AuthService implements OnModuleInit {
     const parts = idToken.split('.');
     if (parts.length !== 3) throw new UnauthorizedException('Malformed JWT — expected 3 parts');
 
+    let header: { alg: string; kid: string };
+    try {
+      header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    } catch {
+      throw new UnauthorizedException('JWT parts are not valid base64url JSON');
+    }
+    // Only RS256 is valid for Google/Firebase ID tokens; reject anything else up front.
+    if (header?.alg !== 'RS256' || typeof header.kid !== 'string') {
+      throw new UnauthorizedException('Unsupported ID token algorithm');
+    }
+
     try {
       return {
-        header:       JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8')),
+        header,
         payload:      JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8')) as P,
         signingInput: `${parts[0]}.${parts[1]}`,
         signature:    Buffer.from(parts[2], 'base64url'),
@@ -253,37 +265,90 @@ export class AuthService implements OnModuleInit {
     }
   }
 
+  /** Fetch a Google cert document, cached for its Cache-Control max-age. */
+  private async fetchCerts<T>(url: string, label: string, force = false): Promise<T> {
+    const cached = this.certCache.get(url);
+    if (!force && cached && cached.expiresAt > Date.now()) return cached.body as T;
+
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(CERT_FETCH_TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      if (!body || Object.keys(body).length === 0) throw new Error('empty cert response');
+
+      const maxAge = /max-age=(\d+)/.exec(res.headers.get('cache-control') ?? '');
+      const ttl = maxAge ? Number(maxAge[1]) * 1000 : CERT_DEFAULT_TTL_MS;
+      this.certCache.set(url, { body, expiresAt: Date.now() + ttl });
+      return body as T;
+    } catch (err) {
+      this.logger.error(`${label} cert fetch failed: ${(err as Error).message}`);
+      if (cached) return cached.body as T; // stale but still Google's keys
+      throw new UnauthorizedException(`Could not fetch ${label} public certs`);
+    }
+  }
+
   // ── Public auth methods ────────────────────────────────────────────────────
 
+  /**
+   * Rotate a refresh token. The old token is consumed atomically, so concurrent
+   * refreshes with the same token yield one new pair and 401s (not 500s).
+   */
   async refresh(dto: RefreshTokenDto): Promise<TokenPair> {
-    const session = await this.prisma.userSession.findUnique({
-      where: { refreshToken: dto.refreshToken },
-      include: { user: true },
-    });
+    const session = await this.findSessionByRefreshToken(dto.refreshToken);
+    if (!session) throw new UnauthorizedException('Invalid or expired refresh token');
 
-    if (!session || session.expiresAt < new Date()) {
-      if (session) await this.prisma.userSession.delete({ where: { id: session.id } });
+    const consumed = await this.prisma.userSession.deleteMany({ where: { id: session.id } });
+    if (consumed.count === 0 || session.expiresAt < new Date()) {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
-
-    await this.prisma.userSession.delete({ where: { id: session.id } });
     return this.createSession(session.userId, session.user.email);
   }
 
-  async logout(refreshToken: string): Promise<void> {
-    await this.prisma.userSession.deleteMany({ where: { refreshToken } });
+  /** End the current session: its access token and refresh token stop working. */
+  async logout(userId: string, sessionId: string, refreshToken: string): Promise<void> {
+    await this.prisma.userSession.deleteMany({
+      where: {
+        userId,
+        OR: [
+          { id: sessionId },
+          { refreshToken: this.hashToken(refreshToken) },
+          { refreshToken }, // legacy plaintext rows
+        ],
+      },
+    });
+  }
+
+  /** True while the session behind an access token has not been logged out or rotated away. */
+  async isSessionActive(sessionId: string | undefined): Promise<boolean> {
+    if (!sessionId) return false;
+    const session = await this.prisma.userSession.findUnique({
+      where: { id: sessionId },
+      select: { expiresAt: true },
+    });
+    return !!session && session.expiresAt > new Date();
   }
 
   async logoutAll(userId: string): Promise<void> {
     await this.prisma.userSession.deleteMany({ where: { userId } });
   }
 
+  /** Dev login is off unless explicitly enabled, and never available in production. */
+  isDevLoginEnabled(): boolean {
+    return (
+      this.config.get<string>('ENABLE_DEV_LOGIN') === 'true' &&
+      this.config.get<string>('NODE_ENV') !== 'production'
+    );
+  }
+
   async devLogin(username: string): Promise<{
     tokens: TokenPair;
     user: { id: string; email: string; displayName: string; isNewUser: boolean };
   }> {
-    if (this.config.get<string>('NODE_ENV') === 'production') {
-      throw new UnauthorizedException('Dev login not allowed in production');
+    if (!this.isDevLoginEnabled()) {
+      throw new NotFoundException();
     }
 
     const cleanUsername = username.trim().toLowerCase();
@@ -322,16 +387,35 @@ export class AuthService implements OnModuleInit {
     const dayMatch         = refreshExpiresIn.match(/^(\d+)d$/);
     const refreshExpDays   = dayMatch ? parseInt(dayMatch[1], 10) : (parseInt(refreshExpiresIn, 10) || 30);
 
-    const session = await this.prisma.userSession.create({
+    // Only a SHA-256 hash is stored, so a database leak does not leak usable tokens.
+    const refreshToken = randomBytes(32).toString('base64url');
+    await this.prisma.userSession.create({
       data: {
         id: sessionId,
-        refreshToken: uuid(),
+        refreshToken: this.hashToken(refreshToken),
         userId,
         expiresAt: new Date(Date.now() + refreshExpDays * 24 * 60 * 60 * 1000),
       },
     });
 
     const accessToken = await this.jwtService.signAsync({ sub: userId, email, sessionId } as JwtPayload);
-    return { accessToken, refreshToken: session.refreshToken };
+    return { accessToken, refreshToken };
+  }
+
+  private hashToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
+  }
+
+  /** Looks up by hash; falls back to legacy plaintext rows (rotating one stores a hash). */
+  private async findSessionByRefreshToken(refreshToken: string) {
+    const hashed = await this.prisma.userSession.findUnique({
+      where: { refreshToken: this.hashToken(refreshToken) },
+      include: { user: true },
+    });
+    if (hashed) return hashed;
+    return this.prisma.userSession.findUnique({
+      where: { refreshToken },
+      include: { user: true },
+    });
   }
 }

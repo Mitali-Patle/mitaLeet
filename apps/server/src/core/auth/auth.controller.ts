@@ -5,10 +5,9 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
-  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { GoogleAuthDto, RefreshTokenDto, LogoutDto } from './dto/auth.dto';
+import { GoogleAuthDto, RefreshTokenDto, LogoutDto, DevLoginDto } from './dto/auth.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -28,11 +27,8 @@ export class AuthController {
   @Public()
   @Post('dev-login')
   @HttpCode(HttpStatus.OK)
-  async devLogin(@Body('username') username: string) {
-    if (!username) {
-      throw new BadRequestException('Username is required');
-    }
-    return this.authService.devLogin(username);
+  async devLogin(@Body() dto: DevLoginDto) {
+    return this.authService.devLogin(dto.username);
   }
 
   @Public()
@@ -45,8 +41,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Body() dto: LogoutDto) {
-    await this.authService.logout(dto.refreshToken);
+  async logout(@CurrentUser() user: JwtPayload, @Body() dto: LogoutDto) {
+    await this.authService.logout(user.sub, user.sessionId, dto.refreshToken);
     return { message: 'Logged out' };
   }
 
