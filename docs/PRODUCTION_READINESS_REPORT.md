@@ -54,7 +54,7 @@ Solve pipeline:   LeetCode recentAcSubmissions → SyncService (only writer of S
 | Untracked duplicate migration | breaks `migrate deploy` (`type "UserStatus" already exists`) | existing defect (removed) |
 | Extension build / tsc | build pass, tsc 3 errors | existing defect |
 | Mobile `flutter test` | **fails to compile** (`phosphor_flutter` vs final `IconData`) | dependency compatibility |
-| Mobile `flutter analyze` | 89 infos, 0 errors | — |
+| Mobile `flutter analyze` | 89 issues: 0 errors, **22 warnings** (unused imports/variable), 67 infos. Analyze exits non-zero on warnings. | existing defect |
 | Secrets scan (gitleaks, full history) | no real secrets | — |
 | CI on GitHub | red on every recent push | existing defect |
 | Exploit reproduction (local) | **21 of 21 suspected issues confirmed** | see SECURITY_FINDINGS |
@@ -99,7 +99,7 @@ No migrations were added, so this release can be rolled back by code alone. The 
 | Server e2e (13 suites, real Postgres) | 90 | 90 | 0 | Run repeatedly. One intermittent failure was a real socket race, fixed in `7748ea9`; another was a timestamp-precision bug, fixed in `d65be56`. |
 | Server unit (timezone helpers) | 5 | 5 | 0 | |
 | Mobile widget test | 1 | 1 | 0 | Signed-out launch reaches login |
-| Mobile analyze | — | 0 errors, 0 warnings | — | 90 style infos (existing) |
+| Mobile analyze | — | 0 errors; the 22 existing warnings were removed after CI caught them (my local filter had hidden them) | — | Style infos remain |
 | Extension tsc + build | — | pass | — | |
 | Production Docker image smoke | manual | pass | — | Non-root, migrates, healthy, dev-login 404 |
 | Android APK build | **not run** | — | — | Local disk nearly full; covered by the CI step |

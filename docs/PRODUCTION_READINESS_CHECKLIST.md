@@ -6,7 +6,7 @@ Status as of 2026-10-18, branch `prod-readiness`. ✅ done and verified · ⏳ d
 
 | # | Gate | Status | Evidence |
 |---|---|---|---|
-| 1 | Functionality: critical journeys work | **NOT VERIFIED** (passes locally) | 90 server e2e tests cover sign-in, sessions, linking, sync, XP, squads, friends, races, challenges, timezone, deletion. Mobile: analyze clean, 1 widget test. No on-device or production run yet. |
+| 1 | Functionality: critical journeys work | **NOT VERIFIED** (passes locally) | 90 server e2e tests cover sign-in, sessions, linking, sync, XP, squads, friends, races, challenges, timezone, deletion. Mobile: analyze (warnings fixed after the first CI run), 1 widget test. No on-device or production run yet. |
 | 2 | Security: no unresolved Critical; High fixed or accepted | **BLOCKED** | All 4 Critical fixed with tests. High: 8 fixed; **SEC-13 (GitHub token in local git remote) needs you to rotate it**. See SECURITY_FINDINGS.md |
 | 3 | Data safety: migrations, backups, recovery | **BLOCKED** | Migrations: applied from scratch, no drift (CI-checked); this release adds none. **Database provider and plan unknown; no backup restored.** A Free Render Postgres database would expire after 30 days. |
 | 4 | Quality: tests pass, build succeeds | **NOT VERIFIED** (local PASS) | Local: typecheck, build, 5 unit + 90 e2e, extension build + tsc, Flutter analyze + test all pass. New CI workflow not yet run on GitHub. Android APK build not run locally (disk space). |

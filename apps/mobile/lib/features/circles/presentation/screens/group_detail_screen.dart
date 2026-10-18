@@ -10,9 +10,7 @@ import '../../../../shared/widgets/lc_card.dart';
 import '../../../../shared/widgets/lc_status_badge.dart';
 import '../../../../shared/widgets/lc_stat_container.dart';
 import '../../../../shared/widgets/lc_metallic_container.dart';
-import '../../../../shared/widgets/lc_progress_bar.dart';
 import '../../../../shared/widgets/lc_activity_tile.dart';
-import '../../../../shared/widgets/lc_leaderboard_card.dart';
 
 /// Group detail dashboard — tactical HQ view.
 class GroupDetailScreen extends ConsumerWidget {

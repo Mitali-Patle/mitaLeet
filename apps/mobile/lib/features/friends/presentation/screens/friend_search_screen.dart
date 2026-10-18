@@ -5,9 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_animations.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
-import '../../../../shared/widgets/lc_button.dart';
 import '../../../friends/providers/friends_provider.dart';
 
 /// Search and add friends.

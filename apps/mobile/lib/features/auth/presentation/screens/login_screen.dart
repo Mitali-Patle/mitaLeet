@@ -5,7 +5,6 @@ import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_animations.dart';
 import '../../../../shared/widgets/lc_button.dart';
 import '../../../auth/providers/auth_provider.dart';
 
