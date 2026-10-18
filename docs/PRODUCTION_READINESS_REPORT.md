@@ -109,7 +109,7 @@ No migrations were added, so this release can be rolled back by code alone. The 
 
 ## 6. Deployment status
 
-**Classification: D, "operational in a limited or unverified environment".** The old build answers at `https://mitaleet.onrender.com` (health 200 after a 42 s cold start; auth guard active), and the Flutter web app is served at `https://mitali.netlify.app`. This branch isn't deployed, and no production URL has been verified against the new checks. Steps: [DEPLOYMENT_GUIDE](DEPLOYMENT_GUIDE.md).
+**Classification: D, "operational in a limited or unverified environment".** The old build answers at `https://mitaleet.onrender.com` (health 200 after a 42 s cold start; auth guard active), and the Flutter web app is served at `https://mitaleet.netlify.app`. This branch isn't deployed, and no production URL has been verified against the new checks. Steps: [DEPLOYMENT_GUIDE](DEPLOYMENT_GUIDE.md).
 
 ## 7. Prioritized backlog
 
