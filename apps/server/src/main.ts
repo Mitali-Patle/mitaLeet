@@ -38,7 +38,10 @@ async function bootstrap() {
   console.log(`[CORS] mode=${isDev ? 'dev' : 'prod'} origins=${JSON.stringify(allowedOrigins)}`);
 
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       // No origin = mobile app / curl / Postman — always allow
       if (!origin) return callback(null, true);
       // In dev also allow any localhost port
