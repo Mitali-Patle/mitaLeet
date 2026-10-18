@@ -3,10 +3,15 @@ abstract final class AppConstants {
   static const String appName = 'mitaLeet';
 
   // ── API ────────────────────────────────────────────────────────────
-  // Update to your deployed server URL for production builds.
-  // For local Android device testing, replace with your machine's LAN IP.
-  static const String baseUrl = 'https://mitaleet.onrender.com/api/v1';
-  static const String wsUrl = 'https://mitaleet.onrender.com';
+  // Server origin, chosen at build time:
+  //   flutter run --dart-define=API_ORIGIN=http://10.0.2.2:3000        (emulator)
+  //   flutter build apk --dart-define=API_ORIGIN=https://your-api.onrender.com
+  static const String apiOrigin = String.fromEnvironment(
+    'API_ORIGIN',
+    defaultValue: 'https://mitaleet.onrender.com',
+  );
+  static const String baseUrl = '$apiOrigin/api/v1';
+  static const String wsUrl = apiOrigin;
 
   // ── Storage keys ───────────────────────────────────────────────────
   static const String accessTokenKey = 'access_token';
