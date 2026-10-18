@@ -63,7 +63,7 @@ Key variables (full list and production notes in [docs/DEPLOYMENT_GUIDE.md](docs
 | `GOOGLE_CLIENT_ID`, `FIREBASE_PROJECT_ID` | Token verification |
 | `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Push (optional locally; keep the `\n` sequences) |
 | `ENABLE_DEV_LOGIN` | `true` **locally only**; enables the passwordless dev login. Ignored in production. |
-| `CORS_ORIGINS`, `TRUST_PROXY_HOPS` | Production web origins; proxy hops (Render = 1) |
+| `CORS_ORIGINS`, `TRUST_PROXY_HOPS` | Production web origins; proxy hops (Render = 2: Cloudflare + load balancer) |
 
 The whole stack in Docker (production image, no hot reload): `docker compose up --build`.
 

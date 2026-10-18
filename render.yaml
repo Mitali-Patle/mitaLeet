@@ -20,8 +20,9 @@ services:
         value: 15m
       - key: JWT_REFRESH_EXPIRES_IN
         value: 30d
+      # onrender.com traffic passes Cloudflare, then Render's load balancer
       - key: TRUST_PROXY_HOPS
-        value: "1"
+        value: "2"
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
