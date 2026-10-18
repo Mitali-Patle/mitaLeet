@@ -11,6 +11,7 @@ import {
   IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, Min,
 } from 'class-validator';
 import { RateLimit } from '../../common/throttle/rate-limit';
+import { HeatmapQueryDto, LimitQueryDto } from '../../common/dto/query.dto';
 
 class LinkAccountDto {
   @IsNotEmpty() @IsString() @MaxLength(50)
@@ -74,8 +75,8 @@ export class LeetCodeController {
   }
 
   @Get('sync/history')
-  syncHistory(@CurrentUser() user: JwtPayload, @Query('limit') limit?: number) {
-    return this.leetcodeService.getSyncHistory(user.sub, limit);
+  syncHistory(@CurrentUser() user: JwtPayload, @Query() q: LimitQueryDto) {
+    return this.leetcodeService.getSyncHistory(user.sub, q.limit);
   }
 
   // ── Extension real-time solve ──────────────────────────────────────
@@ -89,8 +90,8 @@ export class LeetCodeController {
   // ── Solves ─────────────────────────────────────────────────────
 
   @Get('solves')
-  getRecentSolves(@CurrentUser() user: JwtPayload, @Query('limit') limit?: number) {
-    return this.solvesService.getRecentSolves(user.sub, limit);
+  getRecentSolves(@CurrentUser() user: JwtPayload, @Query() q: LimitQueryDto) {
+    return this.solvesService.getRecentSolves(user.sub, q.limit);
   }
 
   @Get('stats')
@@ -99,8 +100,8 @@ export class LeetCodeController {
   }
 
   @Get('heatmap')
-  getHeatmap(@CurrentUser() user: JwtPayload, @Query('days') days?: number) {
-    return this.solvesService.getHeatmap(user.sub, days);
+  getHeatmap(@CurrentUser() user: JwtPayload, @Query() q: HeatmapQueryDto) {
+    return this.solvesService.getHeatmap(user.sub, q.days);
   }
 
   // ── Streak ─────────────────────────────────────────────────────
@@ -129,7 +130,7 @@ export class LeetCodeController {
   }
 
   @Get('sessions')
-  getSessions(@CurrentUser() user: JwtPayload, @Query('limit') limit?: number) {
-    return this.solvesService.getSessions(user.sub, limit);
+  getSessions(@CurrentUser() user: JwtPayload, @Query() q: LimitQueryDto) {
+    return this.solvesService.getSessions(user.sub, q.limit);
   }
 }

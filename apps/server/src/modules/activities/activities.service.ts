@@ -56,17 +56,28 @@ export class ActivitiesService {
     });
     const memberIds = [...new Set(members.map((m) => m.userId))];
 
+    // Keyset pagination on (createdAt, id): ids are random UUIDs, so "id < cursor"
+    // alone returned an arbitrary slice.
+    const after = cursor
+      ? await this.prisma.activity.findUnique({ where: { id: cursor }, select: { id: true, createdAt: true } })
+      : null;
+
     return this.prisma.activity.findMany({
       where: {
         userId: { in: memberIds },
-        ...(cursor && { id: { lt: cursor } }),
+        ...(after && {
+          OR: [
+            { createdAt: { lt: after.createdAt } },
+            { createdAt: after.createdAt, id: { lt: after.id } },
+          ],
+        }),
       },
       include: {
         user: {
           select: { id: true, displayName: true, avatarUrl: true },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit,
     });
   }

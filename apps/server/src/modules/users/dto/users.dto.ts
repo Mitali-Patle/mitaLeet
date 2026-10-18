@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import { IsOptional, IsString, IsUrl, Length, MinLength, MaxLength, Matches } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsOptional()
@@ -17,15 +17,19 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
+  @Length(1, 50)
   displayName?: string;
 
+  /** Rendered by other users' clients, so only plain https image URLs. */
   @IsOptional()
-  @IsString()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(500)
   avatarUrl?: string;
 }
 
 export class RegisterDeviceDto {
   @IsString()
+  @Length(10, 4096)
   token!: string;
 
   @IsString()
