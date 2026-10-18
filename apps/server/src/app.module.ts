@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './core/prisma/prisma.module';
 import { AuthModule } from './core/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -24,6 +25,12 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
       ignoreEnvFile: process.env.NODE_ENV === 'test',
     }),
     ScheduleModule.forRoot(),
+    // Default: 120 requests/minute per user (or IP). Sensitive routes override
+    // this with @RateLimit(). In-memory, i.e. per instance; see the scaling plan.
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: 60_000, limit: 120 }],
+      skipIf: () => process.env.THROTTLE_DISABLED === 'true',
+    }),
     PrismaModule,
     AuthModule,
     EventsModule,

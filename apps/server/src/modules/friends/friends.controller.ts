@@ -15,6 +15,7 @@ import {
 } from './dto/friends.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
+import { RateLimit } from '../../common/throttle/rate-limit';
 
 @Controller('friends')
 export class FriendsController {
@@ -35,6 +36,7 @@ export class FriendsController {
     return this.friendsService.getOutgoingRequests(user.sub);
   }
 
+  @RateLimit(30)
   @Get('search')
   search(
     @CurrentUser() user: JwtPayload,
@@ -52,6 +54,7 @@ export class FriendsController {
     return this.friendsService.getMutualFriends(user.sub, otherUserId);
   }
 
+  @RateLimit(30)
   @Post('requests')
   sendRequest(
     @CurrentUser() user: JwtPayload,

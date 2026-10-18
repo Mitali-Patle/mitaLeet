@@ -1,4 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -11,6 +12,10 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
  */
 export function configureApp(app: INestApplication): void {
   const config = app.get(ConfigService);
+
+  // Behind Render/Cloudflare the client IP arrives in X-Forwarded-For; trust that
+  // many proxy hops so rate limits and logs see real client IPs.
+  (app as NestExpressApplication).set('trust proxy', Number(config.get('TRUST_PROXY_HOPS', 1)));
 
   // Security
   app.use(helmet());

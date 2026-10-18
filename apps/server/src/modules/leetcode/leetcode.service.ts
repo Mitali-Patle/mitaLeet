@@ -3,6 +3,8 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -152,16 +154,19 @@ export class LeetCodeService {
       throw new BadRequestException('No LeetCode account linked');
     }
 
-    // Rate limit: max 1 sync per 5 minutes
+    // One manual sync per 2 minutes (each one calls LeetCode several times),
+    // and never while one is still running.
     const recentSync = await this.prisma.syncJob.findFirst({
       where: {
         userId,
-        createdAt: { gte: new Date(Date.now() - 5 * 60_000) },
-        status: { in: ['PENDING', 'RUNNING'] },
+        OR: [
+          { createdAt: { gte: new Date(Date.now() - 2 * 60_000) } },
+          { status: { in: ['PENDING', 'RUNNING'] }, createdAt: { gte: new Date(Date.now() - 10 * 60_000) } },
+        ],
       },
     });
     if (recentSync) {
-      throw new BadRequestException('Sync already in progress. Try again later.');
+      throw new HttpException('A sync ran recently. Try again in a couple of minutes.', HttpStatus.TOO_MANY_REQUESTS);
     }
 
     return this.syncService.triggerSync(userId, 'leetcode_sync');

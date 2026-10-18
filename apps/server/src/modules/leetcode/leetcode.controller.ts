@@ -10,6 +10,7 @@ import { PROBLEM_SLUG } from '../../common/validation/slug';
 import {
   IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, Min,
 } from 'class-validator';
+import { RateLimit } from '../../common/throttle/rate-limit';
 
 class LinkAccountDto {
   @IsNotEmpty() @IsString() @MaxLength(50)
@@ -48,12 +49,14 @@ export class LeetCodeController {
   }
 
   /** Step 1: returns a code to put in the LeetCode profile "About me". */
+  @RateLimit(10)
   @Post('link')
   link(@CurrentUser() user: JwtPayload, @Body() dto: LinkAccountDto) {
     return this.leetcodeService.startLink(user.sub, dto.leetcodeUsername);
   }
 
   /** Step 2: checks the code on LeetCode, then links the account. */
+  @RateLimit(10)
   @Post('link/verify')
   verifyLink(@CurrentUser() user: JwtPayload, @Body() dto: LinkAccountDto) {
     return this.leetcodeService.verifyLink(user.sub, dto.leetcodeUsername);
@@ -64,6 +67,7 @@ export class LeetCodeController {
     return this.leetcodeService.unlinkAccount(user.sub);
   }
 
+  @RateLimit(4)
   @Post('sync')
   manualSync(@CurrentUser() user: JwtPayload) {
     return this.leetcodeService.manualSync(user.sub);
@@ -76,6 +80,7 @@ export class LeetCodeController {
 
   // ── Extension real-time solve ──────────────────────────────────────
 
+  @RateLimit(30)
   @Post('extension-solve')
   extensionSolve(@CurrentUser() user: JwtPayload, @Body() dto: ExtensionSolveDto) {
     return this.solvesService.verifyExtensionSolve(user.sub, dto.problemSlug);

@@ -8,6 +8,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { WsAuthGuard } from './guards/ws-auth.guard';
+import { UserOrIpThrottlerGuard } from '../../common/throttle/rate-limit';
 
 @Module({
   imports: [
@@ -32,6 +33,11 @@ import { WsAuthGuard } from './guards/ws-auth.guard';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // Registered after the JWT guard so limits can be keyed by user.
+    {
+      provide: APP_GUARD,
+      useClass: UserOrIpThrottlerGuard,
     },
   ],
   exports: [AuthService, JwtModule, WsAuthGuard],

@@ -6,6 +6,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateChallengeDto } from './dto/challenge.dto';
+import { RateLimit } from '../../common/throttle/rate-limit';
 
 @Controller('gamification')
 export class GamificationController {
@@ -64,6 +65,7 @@ export class GamificationController {
     return this.challenge.getGroupChallenges(user.sub, groupId);
   }
 
+  @RateLimit(20)
   @Post('challenges/group/:groupId')
   createChallenge(
     @CurrentUser() user: JwtPayload,
