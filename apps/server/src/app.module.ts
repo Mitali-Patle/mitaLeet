@@ -16,7 +16,13 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+      // Tests configure everything through process.env and must never pick
+      // up a developer's real credentials from a local .env file.
+      ignoreEnvFile: process.env.NODE_ENV === 'test',
+    }),
     ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
