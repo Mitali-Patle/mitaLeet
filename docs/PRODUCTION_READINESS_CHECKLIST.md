@@ -9,7 +9,7 @@ Status as of 2026-10-18, branch `prod-readiness`. ✅ done and verified · ⏳ d
 | 1 | Functionality: critical journeys work | **NOT VERIFIED** (passes locally) | 90 server e2e tests cover sign-in, sessions, linking, sync, XP, squads, friends, races, challenges, timezone, deletion. Mobile: analyze (warnings fixed after the first CI run), 1 widget test. No on-device or production run yet. |
 | 2 | Security: no unresolved Critical; High fixed or accepted | **BLOCKED** | All 4 Critical fixed with tests. High: 8 fixed; **SEC-13 (GitHub token in local git remote) needs you to rotate it**. See SECURITY_FINDINGS.md |
 | 3 | Data safety: migrations, backups, recovery | **BLOCKED** | Migrations: applied from scratch, no drift (CI-checked); this release adds none. **Database provider and plan unknown; no backup restored.** A Free Render Postgres database would expire after 30 days. |
-| 4 | Quality: tests pass, build succeeds | **NOT VERIFIED** (local PASS) | Local: typecheck, build, 5 unit + 90 e2e, extension build + tsc, Flutter analyze + test all pass. New CI workflow not yet run on GitHub. Android APK build not run locally (disk space). |
+| 4 | Quality: tests pass, build succeeds | **PASS** | GitHub Actions run 39126927617 (PR #3): server typecheck, build, 5 unit + 90 e2e on Postgres, migration drift check; extension build + tsc; Flutter analyze, test and debug APK build all green. |
 | 5 | Configuration: secrets and env handled safely | **NOT VERIFIED** | No secrets in git (gitleaks, full history). Env vars documented in `render.yaml` and DEPLOYMENT_GUIDE §2. Production env values not inspected (no access). |
 | 6 | Deployment: documented, repeatable, verified | **NOT VERIFIED** | Runbook written; production Docker image verified locally (non-root, migrates, healthy). Branch not deployed. |
 | 7 | Operations: logs, health, error monitoring, recovery | **FAIL** | Done: DB-aware `/health`, request IDs, JSON logs, security warnings. **Missing: error tracking and uptime alerting** (B-03). |
@@ -24,7 +24,7 @@ Status as of 2026-10-18, branch `prod-readiness`. ✅ done and verified · ⏳ d
 - [ ] 🔒 Revoke the GitHub token embedded in the local `origin` URL (SEC-13)
 - [ ] 🔒 Web service on Starter ($7/month) or higher, so cron jobs run and there's no cold start
 - [ ] 🔒 Set env vars from DEPLOYMENT_GUIDE §2; make sure `ENABLE_DEV_LOGIN` is **absent**
-- [ ] ⏳ Push the branch; GitHub Actions CI green
+- [x] ✅ Branch pushed; GitHub Actions CI green (PR #3)
 - [ ] ⏳ Merge to `main`; deploy; smoke tests pass (DEPLOYMENT_GUIDE §5)
 - [ ] ❌ Uptime monitor on `/health` with phone alerts (B-03)
 - [ ] ❌ Privacy policy and terms published; link them from the app and store listings (B-09)

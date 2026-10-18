@@ -102,7 +102,7 @@ No migrations were added, so this release can be rolled back by code alone. The 
 | Mobile analyze | — | 0 errors; the 22 existing warnings were removed after CI caught them (my local filter had hidden them) | — | Style infos remain |
 | Extension tsc + build | — | pass | — | |
 | Production Docker image smoke | manual | pass | — | Non-root, migrates, healthy, dev-login 404 |
-| Android APK build | **not run** | — | — | Local disk nearly full; covered by the CI step |
+| Android APK build (debug) | CI | pass | — | GitHub Actions run 39126927617 (PR #3) |
 
 **Coverage areas:** auth lifecycle (including real RS256 token verification), authorization (REST and WS), XP integrity, linking, rate limits, validation and pagination, friends, races (WS), timezone, account deletion, background jobs and concurrency.
 **Known untested areas:** analytics and insights endpoints, notifications (not wired), group admin actions (promote/demote/transfer: code reviewed only), mobile screens beyond the smoke test, extension runtime on leetcode.com, behaviour under load.
@@ -149,7 +149,7 @@ Effort: S (< ½ day), M (1–2 days), L (3–5 days).
 | 1 Functionality | NOT VERIFIED | 90 e2e tests pass locally; not run on devices or in production |
 | 2 Security | BLOCKED | 0 open Critical; 1 open High needs your action (SEC-13) |
 | 3 Data safety | BLOCKED | DB plan unknown; no restore verified |
-| 4 Quality | NOT VERIFIED | All local checks pass; new CI not yet run on GitHub; APK not built locally |
+| 4 Quality | PASS | GitHub Actions run 39126927617 on PR #3: server (typecheck, build, unit, 90 e2e, drift check), extension, Flutter analyze/test/APK all green |
 | 5 Configuration | NOT VERIFIED | Documented and secrets clean; production values not inspected |
 | 6 Deployment | NOT VERIFIED | Documented; Docker image verified locally; not deployed |
 | 7 Operations | FAIL | No error tracking or alerting yet |
