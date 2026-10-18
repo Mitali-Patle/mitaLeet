@@ -12,9 +12,11 @@ describe('App baseline (e2e)', () => {
     await ctx.app.close();
   });
 
-  it('GET /health returns ok', async () => {
+  it('GET /health checks the database and is not rate limited or prefixed', async () => {
     const res = await ctx.http().get('/health').expect(200);
-    expect(res.body.status).toBe('ok');
+    expect(res.body.data).toMatchObject({ status: 'ok', database: 'ok' });
+    await ctx.http().get('/health/live').expect(200);
+    await ctx.http().get('/api/v1/health').expect(404);
   });
 
   it('rejects unauthenticated requests to protected routes', async () => {

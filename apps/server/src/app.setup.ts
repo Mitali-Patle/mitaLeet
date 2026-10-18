@@ -63,14 +63,8 @@ export function configureApp(app: INestApplication): void {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // Health check for Railway / load balancers
-  const httpAdapter = app.getHttpAdapter();
-  httpAdapter.get('/health', (_req: any, res: any) => {
-    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
-
-  // API prefix + versioning
-  app.setGlobalPrefix('api/v1');
+  // API prefix + versioning (health checks stay at /health for the platform)
+  app.setGlobalPrefix('api/v1', { exclude: ['health', 'health/live'] });
 
   // Global pipes
   app.useGlobalPipes(

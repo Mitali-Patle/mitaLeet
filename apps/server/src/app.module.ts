@@ -14,6 +14,7 @@ import { LeetCodeModule } from './modules/leetcode/leetcode.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { RaceModule } from './modules/race/race.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -44,5 +45,6 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     RaceModule,
     AnalyticsModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}
