@@ -127,32 +127,32 @@ class _AnalyticsDashboardScreenState extends ConsumerState<AnalyticsDashboardScr
           padding: const EdgeInsets.all(AppSpacing.screenPadding),
           children: [
             // ── Difficulty breakdown bar ─────────────────────
-            _SectionLabel('DIFFICULTY BREAKDOWN'),
+            _SectionLabel('Difficulty breakdown'),
             _DifficultyBar(d: a.byDifficulty),
             const SizedBox(height: AppSpacing.sectionGap),
 
             // ── Activity trend ───────────────────────────────
-            _SectionLabel('30-DAY ACTIVITY'),
+            _SectionLabel('30-day activity'),
             _TrendChart(points: a.recentTrend),
             const SizedBox(height: AppSpacing.sectionGap),
 
             // ── Language breakdown ───────────────────────────
             if (a.byLanguage.isNotEmpty) ...[
-              _SectionLabel('LANGUAGES'),
+              _SectionLabel('Languages'),
               _LanguageBreakdown(langs: a.byLanguage, total: a.totalSolves),
               const SizedBox(height: AppSpacing.sectionGap),
             ],
 
             // ── Top topics ───────────────────────────────────
             if (a.topTopics.isNotEmpty) ...[
-              _SectionLabel('TOP TOPICS'),
+              _SectionLabel('Top topics'),
               ...a.topTopics.map((t) => _TopicBar(topic: t, max: a.topTopics.first.count, color: AppColors.primary)),
               const SizedBox(height: AppSpacing.sectionGap),
             ],
 
             // ── Insights ─────────────────────────────────────
             if (_insights.isNotEmpty) ...[
-              _SectionLabel('INSIGHTS'),
+              _SectionLabel('Insights'),
               ..._insights.map((i) => _InsightCard(insight: i)),
             ],
 
@@ -192,10 +192,10 @@ class _DifficultyBar extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _StatPill(label: 'EASY', value: '${d.easy}', color: AppColors.easy),
-              _StatPill(label: 'MEDIUM', value: '${d.medium}', color: AppColors.medium),
-              _StatPill(label: 'HARD', value: '${d.hard}', color: AppColors.hard),
-              _StatPill(label: 'TOTAL', value: '$total', color: AppColors.onSurfaceMedium),
+              _StatPill(label: 'Easy', value: '${d.easy}', color: AppColors.easy),
+              _StatPill(label: 'Medium', value: '${d.medium}', color: AppColors.medium),
+              _StatPill(label: 'Hard', value: '${d.hard}', color: AppColors.hard),
+              _StatPill(label: 'Total', value: '$total', color: AppColors.onSurfaceMedium),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),

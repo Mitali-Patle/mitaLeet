@@ -43,7 +43,7 @@ class _ProgressionScreenState extends ConsumerState<ProgressionScreen> {
           const SizedBox(height: AppSpacing.sectionGap),
 
           // ── Rank ladder ───────────────────────────────────
-          Text('RANK LADDER', style: AppTypography.tacticalLabel()),
+          Text('Rank ladder', style: AppTypography.tacticalLabel()),
           const SizedBox(height: AppSpacing.md),
           _RankLadder(currentRank: p.rank, currentXP: p.xp),
           const SizedBox(height: AppSpacing.sectionGap),
@@ -52,9 +52,9 @@ class _ProgressionScreenState extends ConsumerState<ProgressionScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('ACHIEVEMENTS', style: AppTypography.tacticalLabel()),
+              Text('Achievements', style: AppTypography.tacticalLabel()),
               Text(
-                '${state.achievements.length} UNLOCKED',
+                '${state.achievements.length} unlocked',
                 style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.onSurfaceDim),
               ),
             ],
@@ -65,7 +65,7 @@ class _ProgressionScreenState extends ConsumerState<ProgressionScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.xl),
                 child: Text(
-                  'SOLVE PROBLEMS TO UNLOCK ACHIEVEMENTS',
+                  'Solve problems to unlock achievements',
                   style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
                   textAlign: TextAlign.center,
                 ),

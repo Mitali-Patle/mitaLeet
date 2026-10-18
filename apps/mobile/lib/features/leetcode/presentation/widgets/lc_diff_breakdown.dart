@@ -33,9 +33,9 @@ class LCDiffBreakdown extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('SOLVED', style: AppTypography.tacticalLabel()),
+              Text('Solved', style: AppTypography.tacticalLabel()),
               Text(
-                '$total TOTAL',
+                '$total total',
                 style: AppTypography.stat(fontSize: 14, color: AppColors.onSurface),
               ),
             ],
@@ -49,11 +49,11 @@ class LCDiffBreakdown extends StatelessWidget {
           // Row of counts
           Row(
             children: [
-              _DiffLabel(label: 'EASY', count: easy, color: AppColors.easy),
+              _DiffLabel(label: 'Easy', count: easy, color: AppColors.easy),
               const SizedBox(width: AppSpacing.xl),
-              _DiffLabel(label: 'MEDIUM', count: medium, color: AppColors.medium),
+              _DiffLabel(label: 'Medium', count: medium, color: AppColors.medium),
               const SizedBox(width: AppSpacing.xl),
-              _DiffLabel(label: 'HARD', count: hard, color: AppColors.hard),
+              _DiffLabel(label: 'Hard', count: hard, color: AppColors.hard),
             ],
           ),
         ],

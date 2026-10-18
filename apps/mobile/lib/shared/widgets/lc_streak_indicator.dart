@@ -130,7 +130,7 @@ class _LCStreakIndicatorState extends State<LCStreakIndicator>
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
-                'STREAK',
+                'Streak',
                 style: AppTypography.tacticalLabel(
                   color: AppColors.onSurfaceDim,
                 ),
@@ -146,7 +146,7 @@ class _LCStreakIndicatorState extends State<LCStreakIndicator>
             ),
           ),
           Text(
-            'DAYS',
+            'Days',
             style: AppTypography.tacticalLabel(fontSize: 9),
           ),
           if (widget.longestStreak != null) ...[

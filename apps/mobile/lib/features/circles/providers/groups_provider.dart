@@ -23,15 +23,20 @@ class GroupMember {
   final int currentStreak;
   final bool isOnline;
 
-  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(
-        userId: j['userId'] ?? '',
-        displayName: j['displayName'] ?? '',
-        role: j['role'] ?? 'MEMBER',
-        xp: j['xp'] ?? 0,
-        totalSolves: j['totalSolves'] ?? 0,
-        currentStreak: j['currentStreak'] ?? 0,
-        isOnline: j['isOnline'] ?? false,
-      );
+  /// The API nests the person under `user`; XP, solves and streak come
+  /// from the squad leaderboard instead, so they default to 0 here.
+  factory GroupMember.fromJson(Map<String, dynamic> j) {
+    final user = j['user'] as Map<String, dynamic>? ?? const {};
+    return GroupMember(
+      userId: j['userId'] ?? user['id'] ?? '',
+      displayName: user['displayName'] ?? j['displayName'] ?? '',
+      role: j['role'] ?? 'MEMBER',
+      xp: j['xp'] ?? 0,
+      totalSolves: j['totalSolves'] ?? 0,
+      currentStreak: j['currentStreak'] ?? 0,
+      isOnline: user['isOnline'] ?? j['isOnline'] ?? false,
+    );
+  }
 }
 
 class Group {
@@ -43,6 +48,7 @@ class Group {
     required this.activeMemberCount,
     this.rank,
     required this.members,
+    this.myRole,
   });
 
   final String id;
@@ -53,6 +59,9 @@ class Group {
   final int? rank;
   final List<GroupMember> members;
 
+  /// The signed-in user's role in this squad (OWNER, ADMIN or MEMBER).
+  final String? myRole;
+
   factory Group.fromJson(Map<String, dynamic> j) {
     final members = (j['members'] as List? ?? [])
         .map((e) => GroupMember.fromJson(e as Map<String, dynamic>))
@@ -62,9 +71,10 @@ class Group {
       name: j['name'] ?? '',
       code: j['code'] ?? '',
       memberCount: members.length,
-      activeMemberCount: members.where((m) => m.isOnline).length,
+      activeMemberCount: j['onlineCount'] ?? members.where((m) => m.isOnline).length,
       rank: j['rank'],
       members: members,
+      myRole: j['myRole'],
     );
   }
 }

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
-import '../../../auth/providers/auth_provider.dart';
 import '../../providers/groups_provider.dart';
 import 'group_detail_screen.dart';
 
@@ -47,15 +46,6 @@ class _SquadDetailRouteState extends ConsumerState<SquadDetailRoute> {
       );
     }
 
-    final myId = ref.watch(authStateProvider).userId;
-    final me = group.members.where((m) => m.userId == myId).firstOrNull;
-    return GroupDetailScreen(
-      groupId: group.id,
-      groupName: group.name,
-      groupCode: group.code,
-      memberCount: group.memberCount,
-      onlineCount: group.activeMemberCount,
-      myRole: me?.role,
-    );
+    return GroupDetailScreen(group: group);
   }
 }

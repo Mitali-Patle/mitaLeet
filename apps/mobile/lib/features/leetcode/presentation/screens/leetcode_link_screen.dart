@@ -156,7 +156,7 @@ class _LinkForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xl),
 
-        Text('LINK LEETCODE', style: AppTypography.stat(fontSize: 18, color: AppColors.onSurface)),
+        Text('Link LeetCode', style: AppTypography.stat(fontSize: 18, color: AppColors.onSurface)),
         const SizedBox(height: AppSpacing.sm),
         Text(
           'Enter your LeetCode username to enable automatic solve tracking and streak sync.',
@@ -164,7 +164,7 @@ class _LinkForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xxxl),
 
-        Text('LEETCODE USERNAME', style: AppTypography.tacticalLabel()),
+        Text('LeetCode username', style: AppTypography.tacticalLabel()),
         const SizedBox(height: AppSpacing.sm),
         TextField(
           controller: controller,
@@ -178,7 +178,7 @@ class _LinkForm extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         Text(
-          'NO PASSWORD REQUIRED. WE ONLY READ YOUR PUBLIC PROFILE.',
+          'No password required. We only read your public profile.',
           style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.onSurfaceDim),
         ),
         const Spacer(),
@@ -186,7 +186,7 @@ class _LinkForm extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: LCButton(
-            label: 'CONTINUE',
+            label: 'Continue',
             icon: PhosphorIconsBold.link,
             isLoading: isLinking,
             isExpanded: true,
@@ -226,7 +226,7 @@ class _VerifyView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: AppSpacing.xxl),
-        Text('VERIFY @$username', style: AppTypography.stat(fontSize: 18, color: AppColors.onSurface)),
+        Text('Verify @$username', style: AppTypography.stat(fontSize: 18, color: AppColors.onSurface)),
         const SizedBox(height: AppSpacing.sm),
         Text(
           'To prove this LeetCode account is yours, add the code below anywhere in your '
@@ -236,7 +236,7 @@ class _VerifyView extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xxl),
 
-        Text('YOUR CODE', style: AppTypography.tacticalLabel()),
+        Text('Your code', style: AppTypography.tacticalLabel()),
         const SizedBox(height: AppSpacing.sm),
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
@@ -274,7 +274,7 @@ class _VerifyView extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: LCButton(
-            label: 'VERIFY',
+            label: 'Verify',
             icon: PhosphorIconsBold.sealCheck,
             isLoading: isVerifying,
             isExpanded: true,
@@ -287,7 +287,7 @@ class _VerifyView extends StatelessWidget {
           child: TextButton(
             onPressed: onChangeUsername,
             child: Text(
-              'USE A DIFFERENT USERNAME',
+              'Use a different username',
               style: AppTypography.tacticalLabel(fontSize: 10, color: AppColors.onSurfaceMedium),
             ),
           ),
@@ -347,7 +347,7 @@ class _LinkedView extends StatelessWidget {
                   children: [
                     Text('@$username', style: AppTypography.stat(fontSize: 15, color: AppColors.onSurface)),
                     const SizedBox(height: 2),
-                    Text('LINKED · LAST SYNC $_lastSyncText',
+                    Text('Linked · last sync $_lastSyncText',
                         style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.onSurfaceDim)),
                   ],
                 ),
@@ -361,7 +361,7 @@ class _LinkedView extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: LCButton(
-            label: isSyncing ? 'SYNCING...' : 'SYNC NOW',
+            label: isSyncing ? 'SYNCING...' : 'Sync now',
             icon: PhosphorIconsBold.arrowsClockwise,
             isLoading: isSyncing,
             isExpanded: true,
@@ -383,7 +383,7 @@ class _LinkedView extends StatelessWidget {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Text(
-                  'AUTOMATIC SYNC RUNS EVERY 30 MINUTES',
+                  'Automatic sync runs every 30 minutes',
                   style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.onSurfaceDim),
                 ),
               ),
@@ -398,7 +398,7 @@ class _LinkedView extends StatelessWidget {
           child: TextButton(
             onPressed: onUnlink,
             child: Text(
-              'UNLINK ACCOUNT',
+              'Unlink account',
               style: AppTypography.tacticalLabel(fontSize: 10, color: AppColors.error),
             ),
           ),

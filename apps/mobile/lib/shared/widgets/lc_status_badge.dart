@@ -81,13 +81,13 @@ class _LCStatusBadgeState extends State<LCStatusBadge>
   String get _statusLabel {
     switch (widget.status) {
       case UserStatusType.online:
-        return 'ONLINE';
+        return 'Online';
       case UserStatusType.solving:
-        return 'SOLVING';
+        return 'Solving';
       case UserStatusType.idle:
-        return 'IDLE';
+        return 'Idle';
       case UserStatusType.offline:
-        return 'OFFLINE';
+        return 'Offline';
     }
   }
 

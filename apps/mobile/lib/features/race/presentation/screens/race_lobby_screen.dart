@@ -78,7 +78,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
             const SizedBox(height: AppSpacing.xl),
 
             // ── Create section ─────────────────────────────────
-            _SectionHeader(icon: PhosphorIconsBold.plus, label: 'CREATE ROOM'),
+            _SectionHeader(icon: PhosphorIconsBold.plus, label: 'Create room'),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _slugCtrl,
@@ -91,7 +91,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
             SizedBox(
               width: double.infinity,
               child: LCButton(
-                label: 'CREATE RACE ROOM',
+                label: 'Create race room',
                 icon: PhosphorIconsBold.flagCheckered,
                 isLoading: _isCreating,
                 isExpanded: true,
@@ -104,7 +104,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
             const SizedBox(height: AppSpacing.xxxl),
 
             // ── Join section ───────────────────────────────────
-            _SectionHeader(icon: PhosphorIconsBold.signIn, label: 'JOIN ROOM'),
+            _SectionHeader(icon: PhosphorIconsBold.signIn, label: 'Join room'),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _codeCtrl,
@@ -113,7 +113,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
               textAlign: TextAlign.center,
               maxLength: 6,
               decoration: const InputDecoration(
-                hintText: 'ROOM CODE',
+                hintText: 'Room code',
                 counterText: '',
               ),
             ),
@@ -121,7 +121,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
             SizedBox(
               width: double.infinity,
               child: LCButton(
-                label: 'JOIN ROOM',
+                label: 'Join room',
                 icon: PhosphorIconsBold.arrowRight,
                 isLoading: _isJoining,
                 isExpanded: true,

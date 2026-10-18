@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+import '../../../../shared/widgets/lc_logo.dart';
 import '../../../../core/theme/app_animations.dart';
 import '../../../auth/providers/auth_provider.dart';
 
@@ -106,33 +106,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   opacity: _logoOpacity.value,
                   child: Transform.scale(
                     scale: _logoScale.value,
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.2),
-                            blurRadius: 24,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          'LC',
-                          style: AppTypography.stat(
-                            fontSize: 24,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
+                    child: const LCLogo(size: 52, showWordmark: false),
                   ),
                 );
               },
@@ -147,20 +121,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Column(
                   children: [
                     Text(
-                      'MITALEET',
-                      style: AppTypography.stat(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'COMPETITIVE CODING OS',
-                      style: AppTypography.tacticalLabel(
-                        fontSize: 9,
-                        color: AppColors.onSurfaceDim,
-                      ),
+                      'mitaLeet',
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
                   ],
                 ),

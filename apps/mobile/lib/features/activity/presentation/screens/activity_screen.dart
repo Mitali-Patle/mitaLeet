@@ -42,25 +42,25 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
             child: Row(
               children: [
                 _FilterChip(
-                  label: 'ALL',
+                  label: 'All',
                   isSelected: feed.activeFilter == 'ALL',
                   onTap: () => ref.read(activityFeedProvider.notifier).setFilter('ALL'),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 _FilterChip(
-                  label: 'SOLVES',
+                  label: 'Solves',
                   isSelected: feed.activeFilter == 'SOLVES',
                   onTap: () => ref.read(activityFeedProvider.notifier).setFilter('SOLVES'),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 _FilterChip(
-                  label: 'STREAKS',
+                  label: 'Streaks',
                   isSelected: feed.activeFilter == 'STREAKS',
                   onTap: () => ref.read(activityFeedProvider.notifier).setFilter('STREAKS'),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 _FilterChip(
-                  label: 'CHALLENGES',
+                  label: 'Challenges',
                   isSelected: feed.activeFilter == 'CHALLENGES',
                   onTap: () =>
                       ref.read(activityFeedProvider.notifier).setFilter('CHALLENGES'),
@@ -85,7 +85,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'LIVE',
+                      'Live',
                       style: AppTypography.tacticalLabel(
                         fontSize: 8,
                         color: AppColors.success,
@@ -104,7 +104,7 @@ class _ActivityScreenState extends ConsumerState<ActivityScreen> {
                 : filtered.isEmpty
                     ? Center(
                         child: Text(
-                          'NO ACTIVITY YET',
+                          'No activity yet',
                           style: AppTypography.tacticalLabel(
                             color: AppColors.onSurfaceDim,
                           ),

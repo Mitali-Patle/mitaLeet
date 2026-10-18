@@ -57,11 +57,8 @@ class LCAppBar extends StatelessWidget implements PreferredSizeWidget {
       leading: leading,
       leadingWidth: leading != null ? 48 : 0,
       title: Text(
-        title.toUpperCase(),
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              letterSpacing: 1.5,
-              color: AppColors.onSurface,
-            ),
+        title,
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppColors.onSurface),
       ),
       actions: [
         if (actions != null) ...actions!,

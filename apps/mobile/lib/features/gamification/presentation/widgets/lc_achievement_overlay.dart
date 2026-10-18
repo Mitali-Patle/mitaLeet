@@ -100,7 +100,7 @@ class _LCGamificationOverlayState extends State<LCGamificationOverlay>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'ACHIEVEMENT UNLOCKED',
+                          'Achievement unlocked',
                           style: AppTypography.tacticalLabel(
                               fontSize: 8, color: AppColors.primary),
                         ),

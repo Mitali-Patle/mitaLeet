@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -11,229 +14,290 @@ import '../../../../shared/widgets/lc_status_badge.dart';
 import '../../../../shared/widgets/lc_stat_container.dart';
 import '../../../../shared/widgets/lc_metallic_container.dart';
 import '../../../../shared/widgets/lc_activity_tile.dart';
+import '../../../../shared/widgets/lc_toast.dart';
+import '../../../activity/providers/activity_feed_provider.dart';
+import '../../../gamification/providers/gamification_provider.dart';
+import '../../providers/groups_provider.dart';
 
-/// Group detail dashboard — tactical HQ view.
+/// Members of one squad ranked by XP, with level, solves and streak.
+final squadLeaderboardProvider =
+    FutureProvider.autoDispose.family<List<LeaderboardEntry>, String>((ref, groupId) async {
+  final res = await ref.read(apiClientProvider).get(ApiEndpoints.groupLeaderboard(groupId));
+  return (res.data['data'] as List)
+      .map((e) => LeaderboardEntry.fromJson(e as Map<String, dynamic>))
+      .toList();
+});
+
+/// Recent activity of the squad's members.
+final squadActivityProvider =
+    FutureProvider.autoDispose.family<List<ActivityItem>, String>((ref, groupId) async {
+  final res = await ref.read(apiClientProvider).get(ApiEndpoints.groupActivity(groupId));
+  return (res.data['data'] as List)
+      .map((e) => ActivityItem.fromJson(e as Map<String, dynamic>))
+      .toList();
+});
+
+String _roleLabel(String role) => switch (role) {
+      'OWNER' => 'Owner',
+      'ADMIN' => 'Admin',
+      _ => 'Member',
+    };
+
+/// Squad page: invite code, totals, members ranked by XP, recent activity.
 class GroupDetailScreen extends ConsumerWidget {
-  const GroupDetailScreen({
-    super.key,
-    required this.groupId,
-    required this.groupName,
-    required this.groupCode,
-    required this.memberCount,
-    required this.onlineCount,
-    required this.myRole,
-  });
+  const GroupDetailScreen({super.key, required this.group});
 
-  final String groupId;
-  final String groupName;
-  final String groupCode;
-  final int memberCount;
-  final int onlineCount;
-  final String? myRole;
+  final Group group;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final board = ref.watch(squadLeaderboardProvider(group.id));
+    final activity = ref.watch(squadActivityProvider(group.id));
+    final online = {for (final m in group.members) m.userId: m.isOnline};
+    final roles = {for (final m in group.members) m.userId: m.role};
+
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: LCAppBar(
-        title: groupName,
-        actions: [
-          if (myRole == 'OWNER' || myRole == 'ADMIN')
-            IconButton(
-              icon: const Icon(PhosphorIconsBold.gear, size: 20),
-              onPressed: () {},
-              color: AppColors.onSurfaceMedium,
-            ),
-        ],
-      ),
+      appBar: LCAppBar(title: group.name),
       body: RefreshIndicator(
         color: AppColors.primary,
         backgroundColor: AppColors.surfaceVariant,
-        onRefresh: () async {},
+        onRefresh: () async {
+          ref.invalidate(squadLeaderboardProvider(group.id));
+          ref.invalidate(squadActivityProvider(group.id));
+          await Future.wait([
+            ref.read(squadLeaderboardProvider(group.id).future),
+            ref.read(squadActivityProvider(group.id).future),
+            ref.read(groupsProvider.notifier).loadGroups(),
+          ]);
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(AppSpacing.screenPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Squad header ────────────────────────────────
-              LCMetallicContainer(
-                intensity: MetallicIntensity.prominent,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              _SquadHeader(group: group),
+              const SizedBox(height: AppSpacing.sectionGap),
+
+              // ── Totals ──────────────────────────────────────
+              board.when(
+                data: (entries) {
+                  final solves = entries.fold<int>(0, (sum, e) => sum + e.totalSolves);
+                  final avgStreak = entries.isEmpty
+                      ? 0.0
+                      : entries.fold<int>(0, (sum, e) => sum + e.currentStreak) / entries.length;
+                  return Row(
+                    children: [
+                      Expanded(child: LCStatContainer(label: 'Total solves', value: '$solves')),
+                      const SizedBox(width: AppSpacing.itemGap),
+                      Expanded(
+                        child: LCStatContainer(
+                          label: 'Average streak',
+                          value: '${avgStreak.toStringAsFixed(1)} d',
+                          valueColor: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox(height: 72),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+              const SizedBox(height: AppSpacing.sectionGap),
+
+              // ── Members ─────────────────────────────────────
+              _SectionTitle(title: 'Members', trailing: '${group.memberCount}'),
+              const SizedBox(height: AppSpacing.md),
+              board.when(
+                data: (entries) => Column(
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppColors.metallic.withValues(alpha: 0.3),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              groupName.isNotEmpty ? groupName[0] : '?',
-                              style: AppTypography.stat(
-                                fontSize: 20,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.lg),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(groupName,
-                                  style: Theme.of(context).textTheme.headlineSmall),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Icon(PhosphorIconsBold.link, size: 12, color: AppColors.onSurfaceDim),
-                                  const SizedBox(width: 4),
-                                  Text(groupCode,
-                                      style: AppTypography.stat(fontSize: 11, color: AppColors.onSurfaceMedium)),
-                                  const SizedBox(width: AppSpacing.md),
-                                  GestureDetector(
-                                    onTap: () {
-                                      // Copy to clipboard
-                                    },
-                                    child: Text('COPY', style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.primary)),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Row(
-                      children: [
-                        _StatusChip(
-                          icon: PhosphorIconsBold.users,
-                          value: '$memberCount',
-                          label: 'MEMBERS',
-                        ),
-                        const SizedBox(width: AppSpacing.lg),
-                        _StatusChip(
-                          icon: PhosphorIconsBold.checkCircle,
-                          value: '$onlineCount',
-                          label: 'ONLINE',
-                          valueColor: AppColors.statusOnline,
-                        ),
-                        const SizedBox(width: AppSpacing.lg),
-                        if (myRole != null)
-                          _StatusChip(
-                            icon: PhosphorIconsBold.shield,
-                            value: myRole!,
-                            label: 'ROLE',
-                            valueColor: myRole == 'OWNER'
-                                ? const Color(0xFFD4A843)
-                                : AppColors.onSurfaceMedium,
-                          ),
-                      ],
-                    ),
+                    for (final e in entries)
+                      _MemberTile(
+                        rank: e.rank,
+                        name: e.displayName,
+                        isOnline: online[e.userId] ?? false,
+                        role: roles[e.userId] ?? 'MEMBER',
+                        xp: e.xp,
+                        level: e.level,
+                        streak: e.currentStreak,
+                      ),
                   ],
                 ),
+                loading: () => const _Loading(),
+                error: (_, __) => const _ErrorText('Could not load members. Pull down to retry.'),
               ),
               const SizedBox(height: AppSpacing.sectionGap),
 
-              // ── Stats row ──────────────────────────────────
-              const Row(
-                children: [
-                  Expanded(
-                    child: LCStatContainer(label: 'TOTAL SOLVES', value: '487'),
-                  ),
-                  SizedBox(width: AppSpacing.itemGap),
-                  Expanded(
-                    child: LCStatContainer(
-                      label: 'AVG STREAK',
-                      value: '8.3d',
-                      valueColor: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sectionGap),
-
-              // ── Members ────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('MEMBERS', style: AppTypography.tacticalLabel()),
-                  Text('$memberCount', style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim)),
-                ],
-              ),
+              // ── Activity ────────────────────────────────────
+              const _SectionTitle(title: 'Recent activity'),
               const SizedBox(height: AppSpacing.md),
-              ..._buildDemoMembers(),
-              const SizedBox(height: AppSpacing.sectionGap),
-
-              // ── Activity ───────────────────────────────────
-              Text('RECENT ACTIVITY', style: AppTypography.tacticalLabel()),
-              const SizedBox(height: AppSpacing.md),
-              LCCard(
-                padding: EdgeInsets.zero,
-                child: Column(
-                  children: const [
-                    LCActivityTile(
-                      displayName: 'akshay',
-                      action: 'solved',
-                      detail: 'two-sum',
-                      timestamp: '3m',
-                      difficulty: 'EASY',
-                    ),
-                    LCActivityTile(
-                      displayName: 'priya',
-                      action: 'extended streak to',
-                      detail: '9 days',
-                      timestamp: '15m',
-                    ),
-                    LCActivityTile(
-                      displayName: 'rahul',
-                      action: 'solved',
-                      detail: 'valid-parentheses',
-                      timestamp: '42m',
-                      difficulty: 'EASY',
-                    ),
-                  ],
-                ),
+              activity.when(
+                data: (items) => items.isEmpty
+                    ? const _ErrorText('No activity yet. Solves by squad members show up here.')
+                    : LCCard(
+                        padding: EdgeInsets.zero,
+                        child: Column(
+                          children: [
+                            for (final a in items.take(20))
+                              LCActivityTile(
+                                displayName: a.displayName,
+                                action: a.action,
+                                detail: a.detail,
+                                timestamp: a.timeAgo,
+                                difficulty: a.difficulty,
+                              ),
+                          ],
+                        ),
+                      ),
+                loading: () => const _Loading(),
+                error: (_, __) => const _ErrorText('Could not load activity. Pull down to retry.'),
               ),
+              const SizedBox(height: AppSpacing.xxl),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  List<Widget> _buildDemoMembers() {
-    final members = [
-      ('akshay', 'ONLINE', 'OWNER', 2680),
-      ('priya', 'SOLVING', 'ADMIN', 2180),
-      ('mitali', 'ONLINE', 'MEMBER', 2050),
-      ('rahul', 'OFFLINE', 'MEMBER', 1890),
-    ];
+class _SquadHeader extends StatelessWidget {
+  const _SquadHeader({required this.group});
 
-    return members.map((m) {
-      final (name, status, role, xp) = m;
-      return _MemberTile(name: name, status: status, role: role, xp: xp);
-    }).toList();
+  final Group group;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return LCMetallicContainer(
+      intensity: MetallicIntensity.prominent,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(
+                    group.name.isNotEmpty ? group.name[0].toUpperCase() : '?',
+                    style: AppTypography.stat(fontSize: 18, color: AppColors.primaryLight),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(group.name, style: text.titleMedium),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text('Invite code ', style: text.bodySmall?.copyWith(color: AppColors.onSurfaceDim)),
+                        Text(group.code, style: AppTypography.timer(fontSize: 13, color: AppColors.onSurfaceMedium)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              TextButton.icon(
+                icon: const Icon(PhosphorIconsBold.copy, size: 14),
+                label: const Text('Copy'),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: group.code));
+                  if (context.mounted) {
+                    LCToastManager.show(
+                      context,
+                      title: 'Invite code copied',
+                      subtitle: 'Friends can join with it from Squads → Join',
+                      accentColor: AppColors.primary,
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            children: [
+              _StatusChip(icon: PhosphorIconsBold.users, value: '${group.memberCount}', label: 'Members'),
+              const SizedBox(width: AppSpacing.xl),
+              _StatusChip(
+                icon: PhosphorIconsBold.checkCircle,
+                value: '${group.activeMemberCount}',
+                label: 'Online',
+                valueColor: AppColors.statusOnline,
+              ),
+              if (group.myRole != null) ...[
+                const SizedBox(width: AppSpacing.xl),
+                _StatusChip(icon: PhosphorIconsBold.shield, value: _roleLabel(group.myRole!), label: 'Your role'),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title, this.trailing});
+
+  final String title;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(title, style: text.titleSmall),
+        if (trailing != null) Text(trailing!, style: text.bodySmall?.copyWith(color: AppColors.onSurfaceDim)),
+      ],
+    );
+  }
+}
+
+class _Loading extends StatelessWidget {
+  const _Loading();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+        child: Center(
+          child: SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+          ),
+        ),
+      );
+}
+
+class _ErrorText extends StatelessWidget {
+  const _ErrorText(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        child: Text(
+          message,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.onSurfaceDim),
+        ),
+      );
+}
+
 class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.icon,
-    required this.value,
-    required this.label,
-    this.valueColor,
-  });
+  const _StatusChip({required this.icon, required this.value, required this.label, this.valueColor});
 
   final IconData icon;
   final String value;
@@ -243,23 +307,18 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12, color: AppColors.onSurfaceDim),
-            const SizedBox(width: 4),
-            Text(
-              value,
-              style: AppTypography.stat(
-                fontSize: 14,
-                color: valueColor ?? AppColors.onSurface,
-              ),
-            ),
+            Icon(icon, size: 13, color: AppColors.onSurfaceDim),
+            const SizedBox(width: 5),
+            Text(value, style: AppTypography.stat(fontSize: 15, color: valueColor ?? AppColors.onSurface)),
           ],
         ),
         const SizedBox(height: 2),
-        Text(label, style: AppTypography.tacticalLabel(fontSize: 8)),
+        Text(label, style: AppTypography.statLabel()),
       ],
     );
   }
@@ -267,69 +326,57 @@ class _StatusChip extends StatelessWidget {
 
 class _MemberTile extends StatelessWidget {
   const _MemberTile({
+    required this.rank,
     required this.name,
-    required this.status,
+    required this.isOnline,
     required this.role,
     required this.xp,
+    required this.level,
+    required this.streak,
   });
 
+  final int rank;
   final String name;
-  final String status;
+  final bool isOnline;
   final String role;
   final int xp;
-
-  UserStatusType get _statusType {
-    switch (status) {
-      case 'ONLINE': return UserStatusType.online;
-      case 'SOLVING': return UserStatusType.solving;
-      case 'IDLE': return UserStatusType.idle;
-      default: return UserStatusType.offline;
-    }
-  }
-
-  Color get _roleColor {
-    switch (role) {
-      case 'OWNER': return const Color(0xFFD4A843);
-      case 'ADMIN': return AppColors.secondary;
-      default: return AppColors.onSurfaceDim;
-    }
-  }
+  final int level;
+  final int streak;
 
   @override
   Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.md,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
       decoration: BoxDecoration(
-        color: status != 'OFFLINE' ? AppColors.surfaceVariant : Colors.transparent,
+        color: AppColors.surfaceVariant,
         borderRadius: AppRadius.cardRadius,
+        border: Border.all(color: AppColors.surfaceBorder),
       ),
       child: Row(
         children: [
+          SizedBox(
+            width: 24,
+            child: Text('$rank', style: AppTypography.rank(fontSize: 13, color: AppColors.onSurfaceDim)),
+          ),
           Stack(
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: AppColors.surfaceContainer,
-                  border: Border.all(color: AppColors.surfaceBorder),
-                ),
-                child: Center(
-                  child: Text(
-                    name[0].toUpperCase(),
-                    style: AppTypography.stat(fontSize: 14, color: AppColors.onSurfaceMedium),
-                  ),
+              CircleAvatar(
+                radius: 17,
+                backgroundColor: AppColors.surfaceContainer,
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: AppTypography.stat(fontSize: 13, color: AppColors.onSurfaceMedium),
                 ),
               ),
               Positioned(
                 right: 0,
                 bottom: 0,
-                child: LCStatusBadge(status: _statusType, size: 8),
+                child: LCStatusBadge(
+                  status: isOnline ? UserStatusType.online : UserStatusType.offline,
+                  size: 8,
+                ),
               ),
             ],
           ),
@@ -338,15 +385,28 @@ class _MemberTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: Theme.of(context).textTheme.titleSmall),
-                Text(role, style: AppTypography.tacticalLabel(fontSize: 8, color: _roleColor)),
+                Row(
+                  children: [
+                    Flexible(child: Text(name, style: text.titleSmall, overflow: TextOverflow.ellipsis)),
+                    if (role != 'MEMBER') ...[
+                      const SizedBox(width: 6),
+                      Text(
+                        _roleLabel(role),
+                        style: text.labelSmall?.copyWith(
+                          color: role == 'OWNER' ? const Color(0xFFD4A843) : AppColors.secondary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                Text(
+                  'Level $level · $streak-day streak',
+                  style: text.bodySmall?.copyWith(color: AppColors.onSurfaceDim),
+                ),
               ],
             ),
           ),
-          Text(
-            '$xp XP',
-            style: AppTypography.stat(fontSize: 12, color: AppColors.onSurfaceMedium),
-          ),
+          Text('$xp XP', style: AppTypography.stat(fontSize: 13, color: AppColors.onSurfaceMedium)),
         ],
       ),
     );

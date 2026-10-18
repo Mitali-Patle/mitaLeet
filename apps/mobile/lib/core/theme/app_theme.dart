@@ -79,11 +79,20 @@ abstract final class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: AppColors.surface,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+          minimumSize: const Size(0, 44),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.buttonRadius,
           ),
           textStyle: textTheme.labelLarge,
+        ),
+      ),
+
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.onSurfaceMedium,
+          textStyle: textTheme.labelLarge,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.buttonRadius),
         ),
       ),
 
@@ -92,7 +101,8 @@ abstract final class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.onSurface,
           side: const BorderSide(color: AppColors.surfaceBorder),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+          minimumSize: const Size(0, 44),
           shape: RoundedRectangleBorder(
             borderRadius: AppRadius.buttonRadius,
           ),
@@ -139,7 +149,9 @@ abstract final class AppTheme {
       ),
 
       // ── Splash ──────────────────────────────────────────────────────
-      splashFactory: InkSparkle.splashFactory,
+      splashFactory: InkRipple.splashFactory,
+      hoverColor: Colors.white.withValues(alpha: 0.04),
+      highlightColor: Colors.transparent,
     );
   }
 }

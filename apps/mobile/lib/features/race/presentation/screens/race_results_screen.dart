@@ -29,7 +29,7 @@ class RaceResultsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: AppSpacing.xl),
-            Text('FINAL RESULTS', style: AppTypography.tacticalLabel(color: AppColors.primary)),
+            Text('Final results', style: AppTypography.tacticalLabel(color: AppColors.primary)),
             const SizedBox(height: AppSpacing.sectionGap),
 
             ...sorted.map((r) {
@@ -81,7 +81,7 @@ class RaceResultsScreen extends StatelessWidget {
                                 const Icon(PhosphorIconsBold.checkCircle, size: 10, color: AppColors.success),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'ACCEPTED · ${_formatMs(ms)}',
+                                  'Accepted · ${_formatMs(ms)}',
                                   style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.success),
                                 ),
                               ],
@@ -108,7 +108,7 @@ class RaceResultsScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(borderRadius: AppRadius.cardRadius),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text('BACK TO HOME',
+                child: Text('Back to home',
                     style: AppTypography.tacticalLabel(color: AppColors.onSurfaceMedium)),
               ),
             ),

@@ -1,108 +1,67 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// mitaLeet typography system.
+/// mitaLeet typography.
 ///
-/// Three-tier font stack:
-///   - JetBrains Mono: primary (headings, body, labels)
-///   - IBM Plex Mono: secondary (stats, data, indicators)
-///   - System monospace: fallback
+///   - Inter: all interface text (headings, body, labels, buttons)
+///   - Inter with tabular figures: numbers that line up (stats, ranks, XP)
+///   - JetBrains Mono: only where code-like text helps (timers, codes)
 ///
-/// Terminal-inspired, technical, compact, premium.
+/// Text is sentence case. Don't uppercase labels or add letter spacing for
+/// emphasis; use weight and colour instead.
 abstract final class AppTypography {
-  // ── Primary text theme (JetBrains Mono) ────────────────────────────
+  static const _tabular = [FontFeature.tabularFigures()];
+
   static TextTheme get textTheme {
-    return GoogleFonts.jetBrainsMonoTextTheme(
+    return GoogleFonts.interTextTheme(
       const TextTheme(
-        displayLarge: TextStyle(
-          fontSize: 32, fontWeight: FontWeight.w700,
-          letterSpacing: -0.5, height: 1.2,
-        ),
-        displayMedium: TextStyle(
-          fontSize: 28, fontWeight: FontWeight.w600,
-          letterSpacing: -0.25, height: 1.2,
-        ),
-        displaySmall: TextStyle(
-          fontSize: 24, fontWeight: FontWeight.w600,
-          letterSpacing: 0, height: 1.3,
-        ),
-        headlineLarge: TextStyle(
-          fontSize: 22, fontWeight: FontWeight.w600,
-          letterSpacing: 0, height: 1.3,
-        ),
-        headlineMedium: TextStyle(
-          fontSize: 18, fontWeight: FontWeight.w600,
-          letterSpacing: 0.15, height: 1.3,
-        ),
-        headlineSmall: TextStyle(
-          fontSize: 16, fontWeight: FontWeight.w500,
-          letterSpacing: 0.15, height: 1.4,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 16, fontWeight: FontWeight.w600,
-          letterSpacing: 0.5, height: 1.4,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 14, fontWeight: FontWeight.w500,
-          letterSpacing: 0.4, height: 1.4,
-        ),
-        titleSmall: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w500,
-          letterSpacing: 0.5, height: 1.4,
-        ),
-        bodyLarge: TextStyle(
-          fontSize: 14, fontWeight: FontWeight.w400,
-          letterSpacing: 0.25, height: 1.5,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 13, fontWeight: FontWeight.w400,
-          letterSpacing: 0.25, height: 1.5,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w400,
-          letterSpacing: 0.3, height: 1.5,
-        ),
-        labelLarge: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w600,
-          letterSpacing: 1.2, height: 1.4,
-        ),
-        labelMedium: TextStyle(
-          fontSize: 11, fontWeight: FontWeight.w500,
-          letterSpacing: 1.0, height: 1.4,
-        ),
-        labelSmall: TextStyle(
-          fontSize: 10, fontWeight: FontWeight.w500,
-          letterSpacing: 1.0, height: 1.4,
-        ),
+        displayLarge: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -1.0, height: 1.15),
+        displayMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.8, height: 1.2),
+        displaySmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: -0.5, height: 1.25),
+        headlineLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, letterSpacing: -0.4, height: 1.3),
+        headlineMedium: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: -0.3, height: 1.3),
+        headlineSmall: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: -0.2, height: 1.35),
+        titleLarge: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.2, height: 1.35),
+        titleMedium: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -0.1, height: 1.4),
+        titleSmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0, height: 1.4),
+        bodyLarge: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, letterSpacing: 0, height: 1.5),
+        bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0, height: 1.5),
+        bodySmall: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w400, letterSpacing: 0, height: 1.45),
+        labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0, height: 1.3),
+        labelMedium: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, letterSpacing: 0, height: 1.3),
+        labelSmall: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, letterSpacing: 0.1, height: 1.3),
       ),
     );
   }
 
-  // ── Secondary font (IBM Plex Mono) — for stats & data ──────────────
+  // ── Numbers ────────────────────────────────────────────────────────
   static TextStyle stat({
     double fontSize = 20,
     FontWeight fontWeight = FontWeight.w700,
     Color? color,
   }) {
-    return GoogleFonts.ibmPlexMono(
+    return GoogleFonts.inter(
       fontSize: fontSize,
       fontWeight: fontWeight,
-      letterSpacing: -0.5,
+      letterSpacing: -0.4,
       height: 1.1,
+      fontFeatures: _tabular,
       color: color ?? AppColors.onSurface,
     );
   }
 
+  /// Caption under or beside a number ("Day streak", "Solved").
   static TextStyle statLabel({
     double fontSize = 10,
     Color? color,
   }) {
-    return GoogleFonts.ibmPlexMono(
-      fontSize: fontSize,
+    return GoogleFonts.inter(
+      fontSize: _readable(fontSize),
       fontWeight: FontWeight.w500,
-      letterSpacing: 1.2,
-      height: 1.4,
+      height: 1.35,
       color: color ?? AppColors.onSurfaceDim,
     );
   }
@@ -111,11 +70,11 @@ abstract final class AppTypography {
     double fontSize = 28,
     Color? color,
   }) {
-    return GoogleFonts.ibmPlexMono(
+    return GoogleFonts.jetBrainsMono(
       fontSize: fontSize,
       fontWeight: FontWeight.w600,
-      letterSpacing: 2.0,
       height: 1.0,
+      fontFeatures: _tabular,
       color: color ?? AppColors.onSurface,
     );
   }
@@ -124,41 +83,46 @@ abstract final class AppTypography {
     double fontSize = 16,
     Color? color,
   }) {
-    return GoogleFonts.ibmPlexMono(
+    return GoogleFonts.inter(
       fontSize: fontSize,
       fontWeight: FontWeight.w700,
-      letterSpacing: 0,
       height: 1.0,
+      fontFeatures: _tabular,
       color: color ?? AppColors.primary,
     );
   }
 
-  // ── Tactical uppercase label ───────────────────────────────────────
+  // ── Labels ─────────────────────────────────────────────────────────
+  /// Small secondary label: section headers, captions, button text.
+  ///
+  /// (Historically an all-caps "tactical" style; callers still pass the
+  /// small sizes that suited it, so sizes are scaled to stay readable.)
   static TextStyle tacticalLabel({
     double fontSize = 10,
     Color? color,
     FontWeight fontWeight = FontWeight.w600,
   }) {
-    return GoogleFonts.jetBrainsMono(
-      fontSize: fontSize,
-      fontWeight: fontWeight,
-      letterSpacing: 1.5,
-      height: 1.4,
+    return GoogleFonts.inter(
+      fontSize: _readable(fontSize),
+      fontWeight: fontWeight == FontWeight.w700 ? FontWeight.w600 : fontWeight,
+      height: 1.35,
       color: color ?? AppColors.onSurfaceDim,
     );
   }
 
-  // ── Realtime indicator text ────────────────────────────────────────
+  /// Live/realtime status text ("3 online").
   static TextStyle indicator({
     double fontSize = 11,
     Color? color,
   }) {
-    return GoogleFonts.jetBrainsMono(
-      fontSize: fontSize,
+    return GoogleFonts.inter(
+      fontSize: _readable(fontSize),
       fontWeight: FontWeight.w500,
-      letterSpacing: 0.8,
-      height: 1.2,
+      height: 1.25,
       color: color ?? AppColors.secondary,
     );
   }
+
+  /// Sizes chosen for 9–11 px all-caps monospace read too small in Inter.
+  static double _readable(double size) => (size + 2.5).clamp(12.0, 16.0);
 }

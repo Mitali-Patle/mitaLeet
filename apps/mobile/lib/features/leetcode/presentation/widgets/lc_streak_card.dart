@@ -95,7 +95,7 @@ class _LCStreakCardState extends State<LCStreakCard>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'DAY STREAK',
+                  'Day streak',
                   style: AppTypography.tacticalLabel(
                     color: s.currentStreak > 0
                         ? AppColors.primary
@@ -116,7 +116,7 @@ class _LCStreakCardState extends State<LCStreakCard>
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      s.isSolvedToday ? 'SOLVED TODAY' : 'NOT YET TODAY',
+                      s.isSolvedToday ? 'SOLVED TODAY' : 'Not yet today',
                       style: AppTypography.tacticalLabel(
                         fontSize: 9,
                         color: s.isSolvedToday
@@ -140,7 +140,7 @@ class _LCStreakCardState extends State<LCStreakCard>
                     fontSize: 20, color: AppColors.onSurfaceMedium),
               ),
               Text(
-                'BEST',
+                'Best',
                 style: AppTypography.tacticalLabel(
                     fontSize: 8, color: AppColors.onSurfaceDim),
               ),

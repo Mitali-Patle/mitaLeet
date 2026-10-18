@@ -69,8 +69,8 @@ class _FriendRequestsScreenState extends ConsumerState<FriendRequestsScreen>
               unselectedLabelColor: AppColors.onSurfaceDim,
               dividerHeight: 0,
               tabs: [
-                Tab(text: 'INCOMING (${state.incoming.length})'),
-                Tab(text: 'OUTGOING (${state.outgoing.length})'),
+                Tab(text: 'Incoming (${state.incoming.length})'),
+                Tab(text: 'Outgoing (${state.outgoing.length})'),
               ],
             ),
           ),
@@ -121,7 +121,7 @@ class _RequestList extends StatelessWidget {
     if (requests.isEmpty) {
       return Center(
         child: Text(
-          'NO ${type.toUpperCase()} REQUESTS',
+          'No ${type.toLowerCase()} requests',
           style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
         ),
       );

@@ -34,13 +34,7 @@ class LCCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: gradient ?? AppColors.cardGradient,
         borderRadius: AppRadius.cardRadius,
-        border: Border.all(
-          color: borderColor ??
-              (metallicAccent
-                  ? AppColors.metallic.withValues(alpha: 0.3)
-                  : AppColors.surfaceBorder),
-          width: metallicAccent ? 0.75 : 0.5,
-        ),
+        border: Border.all(color: borderColor ?? AppColors.surfaceBorder, width: 1),
       ),
       child: Material(
         color: Colors.transparent,
@@ -48,7 +42,8 @@ class LCCard extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: AppRadius.cardRadius,
-          splashColor: AppColors.primary.withValues(alpha: 0.1),
+          hoverColor: Colors.white.withValues(alpha: 0.03),
+          splashColor: Colors.white.withValues(alpha: 0.04),
           child: Padding(
             padding: padding ??
                 const EdgeInsets.all(AppSpacing.cardPadding),

@@ -86,7 +86,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               const SizedBox(height: AppSpacing.huge),
 
               Text(
-                'SET UP YOUR PROFILE',
+                'Set up your profile',
                 style: AppTypography.stat(
                   fontSize: 20,
                   color: AppColors.onSurface,
@@ -94,7 +94,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'CHOOSE A USERNAME AND LINK YOUR LEETCODE ACCOUNT',
+                'Choose a username and link your LeetCode account',
                 style: AppTypography.tacticalLabel(
                   color: AppColors.onSurfaceDim,
                 ),
@@ -103,7 +103,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
               // Username field
               Text(
-                'USERNAME',
+                'Username',
                 style: AppTypography.tacticalLabel(),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -124,7 +124,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
               // LeetCode username field
               Text(
-                'LEETCODE USERNAME',
+                'LeetCode username',
                 style: AppTypography.tacticalLabel(),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -138,7 +138,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'OPTIONAL. REQUIRED FOR AUTOMATIC SOLVE TRACKING.',
+                'Optional. Required for automatic solve tracking.',
                 style: AppTypography.tacticalLabel(
                   fontSize: 8,
                   color: AppColors.onSurfaceDim,
@@ -150,7 +150,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               SizedBox(
                 width: double.infinity,
                 child: LCButton(
-                  label: 'COMPLETE SETUP',
+                  label: 'Complete setup',
                   isLoading: _isLoading,
                   isExpanded: true,
                   onPressed: _completeSetup,

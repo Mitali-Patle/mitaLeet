@@ -231,7 +231,7 @@ class _EmptyState extends StatelessWidget {
           Icon(PhosphorIconsBold.usersThree, size: 48, color: AppColors.onSurfaceDim),
           const SizedBox(height: AppSpacing.lg),
           Text(
-            'NO FRIENDS YET',
+            'No friends yet',
             style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
           ),
           const SizedBox(height: AppSpacing.sm),

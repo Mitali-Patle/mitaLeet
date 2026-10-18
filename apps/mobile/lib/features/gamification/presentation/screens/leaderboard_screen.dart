@@ -21,7 +21,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
   late TabController _tab;
   String _period = 'alltime';
 
-  final _tabs = ['SQUAD', 'FRIENDS', 'GLOBAL'];
+  final _tabs = ['SQUAD', 'Friends', 'Global'];
 
   @override
   void initState() {
@@ -64,7 +64,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                 _LeaderboardList(
                   entries: state.groupLeaderboard,
                   isLoading: state.isLoading,
-                  emptyMessage: 'NO SQUAD MEMBERS YET',
+                  emptyMessage: 'No squad members yet',
                   onRefresh: () => ref.read(gamificationProvider.notifier)
                       .loadGroupLeaderboard(widget.groupId ?? ''),
                 ),
@@ -72,7 +72,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                 _LeaderboardList(
                   entries: state.friendsLeaderboard,
                   isLoading: state.isLoading,
-                  emptyMessage: 'NO FRIENDS YET',
+                  emptyMessage: 'No friends yet',
                   onRefresh: () => ref.read(gamificationProvider.notifier).loadFriendsLeaderboard(),
                 ),
                 // Global + period filter
@@ -89,7 +89,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                       child: _LeaderboardList(
                         entries: state.globalLeaderboard,
                         isLoading: state.isLoading,
-                        emptyMessage: 'NO GLOBAL DATA',
+                        emptyMessage: 'No global data',
                         onRefresh: () => ref.read(gamificationProvider.notifier)
                             .loadGlobalLeaderboard(period: _period),
                       ),
@@ -113,7 +113,7 @@ class _PeriodFilter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final periods = ['daily', 'weekly', 'monthly', 'alltime'];
-    final labels = ['TODAY', 'WEEK', 'MONTH', 'ALL'];
+    final labels = ['TODAY', 'Week', 'Month', 'All'];
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -269,7 +269,7 @@ class _LeaderboardTile extends StatelessWidget {
                   children: [
                     LCRankBadge(rank: entry.rankBadge, size: BadgeSize.small),
                     const SizedBox(width: AppSpacing.sm),
-                    Text('LVL ${entry.level}',
+                    Text('Level ${entry.level}',
                         style: AppTypography.tacticalLabel(fontSize: 7, color: AppColors.onSurfaceDim)),
                     if (entry.currentStreak > 0) ...[
                       const SizedBox(width: AppSpacing.sm),

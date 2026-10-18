@@ -70,8 +70,8 @@ class _FriendSearchScreenState extends ConsumerState<FriendSearchScreen> {
                 ? Center(
                     child: Text(
                       _controller.text.isEmpty
-                          ? 'TYPE TO SEARCH USERS'
-                          : 'NO RESULTS FOUND',
+                          ? 'Type to search users'
+                          : 'No results found',
                       style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
                     ),
                   )
@@ -149,9 +149,9 @@ class _SearchResultTile extends StatelessWidget {
             ),
           ),
           if (isFriend)
-            Text('FRIENDS', style: AppTypography.tacticalLabel(fontSize: 9, color: AppColors.success))
+            Text('Friends', style: AppTypography.tacticalLabel(fontSize: 9, color: AppColors.success))
           else if (hasPending)
-            Text('PENDING', style: AppTypography.tacticalLabel(fontSize: 9, color: AppColors.secondary))
+            Text('Pending', style: AppTypography.tacticalLabel(fontSize: 9, color: AppColors.secondary))
           else
             GestureDetector(
               onTap: onSendRequest,
@@ -163,7 +163,7 @@ class _SearchResultTile extends StatelessWidget {
                   border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 0.5),
                 ),
                 child: Text(
-                  'ADD',
+                  'Add',
                   style: AppTypography.tacticalLabel(fontSize: 9, color: AppColors.primary),
                 ),
               ),

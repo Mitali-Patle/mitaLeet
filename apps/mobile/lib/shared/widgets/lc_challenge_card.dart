@@ -68,7 +68,7 @@ class LCChallengeCard extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      isActive ? 'ACTIVE CHALLENGE' : 'CHALLENGE',
+                      isActive ? 'ACTIVE CHALLENGE' : 'Challenge',
                       style: AppTypography.tacticalLabel(
                         color: isActive ? AppColors.primary : AppColors.onSurfaceDim,
                       ),

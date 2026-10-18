@@ -214,13 +214,13 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
                       '$_countdown',
                       style: AppTypography.stat(fontSize: 72, color: AppColors.primary),
                     ),
-                    Text('STARTING', style: AppTypography.tacticalLabel(color: AppColors.primary)),
+                    Text('Starting', style: AppTypography.tacticalLabel(color: AppColors.primary)),
                   ],
                 ),
               ),
 
             // ── Participants ──────────────────────────────────
-            Text('PARTICIPANTS', style: AppTypography.tacticalLabel()),
+            Text('Participants', style: AppTypography.tacticalLabel()),
             const SizedBox(height: AppSpacing.md),
             ...participants.map((p) => _ParticipantRow(participant: p)),
 
@@ -231,7 +231,7 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
               SizedBox(
                 width: double.infinity,
                 child: LCButton(
-                  label: 'START RACE',
+                  label: 'Start race',
                   icon: PhosphorIconsBold.flagCheckered,
                   isExpanded: true,
                   onPressed: _startRace,
@@ -247,7 +247,7 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
               SizedBox(
                 width: double.infinity,
                 child: LCButton(
-                  label: 'I GOT ACCEPTED — VERIFY',
+                  label: 'I got accepted — verify',
                   icon: PhosphorIconsBold.checkCircle,
                   isLoading: _isSubmitting,
                   isExpanded: true,
@@ -269,7 +269,7 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
                   children: [
                     const Icon(PhosphorIconsBold.checkCircle, color: AppColors.success, size: 18),
                     const SizedBox(width: AppSpacing.md),
-                    Text('ACCEPTED — WAITING FOR OTHERS',
+                    Text('Accepted — waiting for others',
                         style: AppTypography.tacticalLabel(color: AppColors.success)),
                   ],
                 ),

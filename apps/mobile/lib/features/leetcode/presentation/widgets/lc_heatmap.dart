@@ -93,7 +93,7 @@ class _Legend extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('LESS', style: AppTypography.tacticalLabel(fontSize: 7, color: AppColors.onSurfaceDim)),
+        Text('Less', style: AppTypography.tacticalLabel(fontSize: 7, color: AppColors.onSurfaceDim)),
         const SizedBox(width: 4),
         ...[0.0, 0.25, 0.5, 0.75, 1.0].map((a) => Container(
               width: 10, height: 10,
@@ -106,7 +106,7 @@ class _Legend extends StatelessWidget {
               ),
             )),
         const SizedBox(width: 4),
-        Text('MORE', style: AppTypography.tacticalLabel(fontSize: 7, color: AppColors.onSurfaceDim)),
+        Text('More', style: AppTypography.tacticalLabel(fontSize: 7, color: AppColors.onSurfaceDim)),
       ],
     );
   }

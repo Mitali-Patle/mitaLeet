@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../gamification/presentation/widgets/lc_rank_badge.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -202,7 +203,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 width: 0.5),
                           ),
                           child: Text(
-                            progression.rank,
+                            rankDisplayName(progression.rank),
                             style: AppTypography.tacticalLabel(
                               color: AppColors.primary,
                               fontSize: 8,
@@ -211,7 +212,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         const SizedBox(width: AppSpacing.md),
                         Text(
-                          'LVL ${progression.level}',
+                          'Level ${progression.level}',
                           style: AppTypography.stat(
                               fontSize: 14, color: AppColors.onSurface),
                         ),
@@ -228,8 +229,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 6),
                     Text(
                       progression.nextRank != null
-                          ? '${progression.currentLevelXP} / ${progression.nextLevelXP} XP → ${progression.nextRank}'
-                          : 'MAX RANK ACHIEVED',
+                          ? '${progression.currentLevelXP} / ${progression.nextLevelXP} XP → ${rankDisplayName(progression.nextRank!)}'
+                          : 'Max rank achieved',
                       style: AppTypography.tacticalLabel(
                           fontSize: 8, color: AppColors.onSurfaceDim),
                     ),
@@ -246,7 +247,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Expanded(
                         child: LCStatContainer(
-                            label: 'SOLVED',
+                            label: 'Solved',
                             value: '$total',
                             valueColor: AppColors.success)),
                     const SizedBox(width: AppSpacing.itemGap),
@@ -262,7 +263,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Expanded(
                         child: LCStatContainer(
-                            label: 'STREAK',
+                            label: 'Streak',
                             value: '${stats.streak.currentStreak}d')),
                     const SizedBox(width: AppSpacing.itemGap),
                     Expanded(
@@ -281,14 +282,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('DIFFICULTY BREAKDOWN', style: AppTypography.tacticalLabel()),
+                    Text('Difficulty breakdown', style: AppTypography.tacticalLabel()),
                     const SizedBox(height: AppSpacing.lg),
-                    _DifficultyRow(label: 'EASY', count: easy, total: total, color: AppColors.easy),
+                    _DifficultyRow(label: 'Easy', count: easy, total: total, color: AppColors.easy),
                     const SizedBox(height: AppSpacing.md),
                     _DifficultyRow(
-                        label: 'MEDIUM', count: medium, total: total, color: AppColors.medium),
+                        label: 'Medium', count: medium, total: total, color: AppColors.medium),
                     const SizedBox(height: AppSpacing.md),
-                    _DifficultyRow(label: 'HARD', count: hard, total: total, color: AppColors.hard),
+                    _DifficultyRow(label: 'Hard', count: hard, total: total, color: AppColors.hard),
                   ],
                 ),
               ),
@@ -322,7 +323,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     foregroundColor: AppColors.error,
                   ),
                   child: Text(
-                    'SIGN OUT',
+                    'Sign out',
                     style: AppTypography.tacticalLabel(color: AppColors.error),
                   ),
                 ),
@@ -335,7 +336,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: TextButton(
                   onPressed: _confirmDeleteAccount,
                   child: Text(
-                    'DELETE ACCOUNT',
+                    'Delete account',
                     style: AppTypography.tacticalLabel(fontSize: 9, color: AppColors.onSurfaceDim),
                   ),
                 ),
@@ -410,7 +411,7 @@ class _ExtensionTokenCardState extends ConsumerState<_ExtensionTokenCard> {
               const Icon(PhosphorIconsBold.puzzlePiece,
                   size: 12, color: AppColors.primary),
               const SizedBox(width: AppSpacing.sm),
-              Text('EXTENSION TOKEN',
+              Text('Extension token',
                   style: AppTypography.tacticalLabel(color: AppColors.primary)),
             ],
           ),
@@ -438,7 +439,7 @@ class _ExtensionTokenCardState extends ConsumerState<_ExtensionTokenCard> {
                 children: [
                   Expanded(
                     child: Text(
-                      _busy ? 'GENERATING…' : 'TAP TO GENERATE AND COPY',
+                      _busy ? 'GENERATING…' : 'Tap to generate and copy',
                       style: AppTypography.tacticalLabel(
                         fontSize: 9,
                         color: AppColors.onSurfaceDim,

@@ -65,7 +65,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('SQUAD NAME', style: AppTypography.tacticalLabel()),
+            Text('Squad name', style: AppTypography.tacticalLabel()),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _nameController,
@@ -78,7 +78,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             ),
             const SizedBox(height: AppSpacing.sectionGap),
 
-            Text('DESCRIPTION', style: AppTypography.tacticalLabel()),
+            Text('Description', style: AppTypography.tacticalLabel()),
             const SizedBox(height: AppSpacing.sm),
             TextField(
               controller: _descController,
@@ -91,7 +91,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'AN INVITE CODE WILL BE GENERATED AUTOMATICALLY',
+              'An invite code will be generated automatically',
               style: AppTypography.tacticalLabel(
                 fontSize: 8,
                 color: AppColors.onSurfaceDim,
@@ -103,7 +103,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             SizedBox(
               width: double.infinity,
               child: LCButton(
-                label: 'CREATE SQUAD',
+                label: 'Create squad',
                 icon: PhosphorIconsBold.plus,
                 isLoading: _isLoading,
                 isExpanded: true,
