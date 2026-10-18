@@ -5,6 +5,7 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
 import { XPService } from './xp.service';
 import { LeaderboardService } from './leaderboard.service';
+import { assertGroupMember } from '../../common/authz/group-membership';
 
 @Injectable()
 export class ChallengeService {
@@ -63,6 +64,9 @@ export class ChallengeService {
       where: { id: challengeId },
     });
     if (!challenge) throw new NotFoundException('Challenge not found');
+    await assertGroupMember(this.prisma, userId, challenge.groupId).catch(() => {
+      throw new NotFoundException('Challenge not found');
+    });
     if (new Date() > challenge.endsAt) throw new BadRequestException('Challenge has ended');
 
     const participation = await this.prisma.challengeParticipant.upsert({
@@ -131,8 +135,9 @@ export class ChallengeService {
     return updated;
   }
 
-  /** Get active challenges for a group. */
-  async getGroupChallenges(groupId: string) {
+  /** Get active challenges for a group. Members only. */
+  async getGroupChallenges(userId: string, groupId: string) {
+    await assertGroupMember(this.prisma, userId, groupId);
     const now = new Date();
     return this.prisma.challenge.findMany({
       where: { groupId, endsAt: { gte: now } },

@@ -37,13 +37,13 @@ export class GroupsController {
   }
 
   @Get(':id/leaderboard')
-  getLeaderboard(@Param('id') id: string) {
-    return this.groupsService.getLeaderboard(id);
+  getLeaderboard(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.groupsService.getLeaderboard(id, user.sub);
   }
 
   @Get(':id/activity')
-  getActivity(@Param('id') id: string) {
-    return this.groupsService.getActivity(id);
+  getActivity(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.groupsService.getActivity(id, user.sub);
   }
 
   @Delete(':id/leave')

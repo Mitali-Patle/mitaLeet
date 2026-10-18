@@ -150,12 +150,21 @@ export class EventsGateway
   // ── Client events ──────────────────────────────────────────────────
 
   @SubscribeMessage(WS_EVENTS.JOIN_GROUP)
-  handleJoinGroup(
+  async handleJoinGroup(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { groupId: string },
   ) {
+    const user = (client as any).user as JwtPayload | undefined;
+    if (!user || typeof data?.groupId !== 'string') return { ok: false };
+
+    // Only members may subscribe to a squad's live events.
+    const member = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId: user.sub, groupId: data.groupId } },
+      select: { id: true },
+    });
+    if (!member) return { ok: false };
+
     client.join(`group:${data.groupId}`);
-    const user = (client as any).user as JwtPayload;
 
     // Notify group members
     this.server.to(`group:${data.groupId}`).emit(WS_EVENTS.GROUP_MEMBER_JOINED, {

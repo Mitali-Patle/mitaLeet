@@ -117,10 +117,10 @@ export class UsersService {
     });
   }
 
-  /** Remove a device token. */
-  async unregisterDevice(token: string) {
+  /** Remove one of the caller's own device tokens. */
+  async unregisterDevice(userId: string, token: string) {
     await this.prisma.deviceToken.deleteMany({
-      where: { token },
+      where: { token, userId },
     });
   }
 

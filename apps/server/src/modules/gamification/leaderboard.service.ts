@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
 import { RANK_ORDER } from './gamification.config';
+import { assertGroupMember } from '../../common/authz/group-membership';
 
 export interface LeaderboardEntry {
   rank: number;
@@ -57,7 +58,13 @@ export class LeaderboardService {
     return entries;
   }
 
-  /** Group leaderboard — all members ranked by XP. */
+  /** Group leaderboard for a requesting user — members only. */
+  async getGroupForMember(userId: string, groupId: string): Promise<LeaderboardEntry[]> {
+    await assertGroupMember(this.prisma, userId, groupId);
+    return this.getGroup(groupId);
+  }
+
+  /** Group leaderboard — all members ranked by XP. Internal: no access check. */
   async getGroup(groupId: string): Promise<LeaderboardEntry[]> {
     const key = `group:${groupId}`;
     const cached = this.cache.get(key);

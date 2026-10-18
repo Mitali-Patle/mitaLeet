@@ -47,8 +47,8 @@ export class GamificationController {
   }
 
   @Get('leaderboard/groups/:groupId')
-  getGroup(@Param('groupId') groupId: string) {
-    return this.leaderboard.getGroup(groupId);
+  getGroup(@CurrentUser() user: JwtPayload, @Param('groupId') groupId: string) {
+    return this.leaderboard.getGroupForMember(user.sub, groupId);
   }
 
   // ── Challenges ─────────────────────────────────────────────────
@@ -59,8 +59,8 @@ export class GamificationController {
   }
 
   @Get('challenges/group/:groupId')
-  getGroupChallenges(@Param('groupId') groupId: string) {
-    return this.challenge.getGroupChallenges(groupId);
+  getGroupChallenges(@CurrentUser() user: JwtPayload, @Param('groupId') groupId: string) {
+    return this.challenge.getGroupChallenges(user.sub, groupId);
   }
 
   @Post('challenges/group/:groupId')

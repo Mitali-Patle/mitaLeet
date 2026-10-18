@@ -44,7 +44,7 @@ export class UsersController {
   }
 
   @Delete('me/devices/:token')
-  unregisterDevice(@Param('token') token: string) {
-    return this.usersService.unregisterDevice(token);
+  unregisterDevice(@CurrentUser() user: JwtPayload, @Param('token') token: string) {
+    return this.usersService.unregisterDevice(user.sub, token);
   }
 }
