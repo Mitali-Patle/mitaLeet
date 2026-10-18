@@ -6,11 +6,29 @@ import { SolvesService } from './solves.service';
 import { StreakService } from './streak.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { PROBLEM_SLUG } from '../../common/validation/slug';
+import {
+  IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, Min,
+} from 'class-validator';
 
 class LinkAccountDto {
   @IsNotEmpty() @IsString() @MaxLength(50)
   leetcodeUsername!: string;
+}
+
+class ExtensionSolveDto {
+  @IsString() @MaxLength(120) @Matches(PROBLEM_SLUG)
+  problemSlug!: string;
+
+  // Sent by existing extension builds; accepted but not trusted.
+  @IsOptional() @IsString() @MaxLength(40)
+  language?: string;
+
+  @IsOptional() @IsDateString()
+  solvedAt?: string;
+
+  @IsOptional() @IsInt() @Min(0)
+  durationMs?: number;
 }
 
 @Controller('leetcode')
@@ -51,18 +69,8 @@ export class LeetCodeController {
   // ── Extension real-time solve ──────────────────────────────────────
 
   @Post('extension-solve')
-  extensionSolve(
-    @CurrentUser() user: JwtPayload,
-    @Body('problemSlug') problemSlug: string,
-    @Body('language') language: string,
-    @Body('solvedAt') solvedAt: string,
-  ) {
-    return this.solvesService.extensionSolve(
-      user.sub,
-      problemSlug,
-      language ?? 'unknown',
-      solvedAt ? new Date(solvedAt) : new Date(),
-    );
+  extensionSolve(@CurrentUser() user: JwtPayload, @Body() dto: ExtensionSolveDto) {
+    return this.solvesService.verifyExtensionSolve(user.sub, dto.problemSlug);
   }
 
   // ── Solves ─────────────────────────────────────────────────────

@@ -7,12 +7,11 @@ import { SyncService } from './sync.service';
 import { StreakService } from './streak.service';
 import { SolvesService } from './solves.service';
 import { EventsModule } from '../../core/events/events.module';
-import { GamificationModule } from '../gamification/gamification.module';
 
 @Module({
-  imports: [EventsModule, ScheduleModule, GamificationModule],
+  imports: [EventsModule, ScheduleModule],
   controllers: [LeetCodeController],
   providers: [LeetCodeService, LeetCodeClient, SyncService, StreakService, SolvesService],
-  exports: [SyncService, StreakService, SolvesService],
+  exports: [SyncService, StreakService, SolvesService, LeetCodeClient],
 })
 export class LeetCodeModule {}

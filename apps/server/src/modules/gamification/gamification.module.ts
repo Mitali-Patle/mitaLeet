@@ -5,9 +5,10 @@ import { XPService } from './xp.service';
 import { LeaderboardService } from './leaderboard.service';
 import { ChallengeService } from './challenge.service';
 import { EventsModule } from '../../core/events/events.module';
+import { LeetCodeModule } from '../leetcode/leetcode.module';
 
 @Module({
-  imports: [EventsModule, ScheduleModule],
+  imports: [EventsModule, ScheduleModule, LeetCodeModule],
   controllers: [GamificationController],
   providers: [XPService, LeaderboardService, ChallengeService],
   exports: [XPService, LeaderboardService, ChallengeService],

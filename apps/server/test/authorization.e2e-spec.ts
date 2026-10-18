@@ -1,6 +1,6 @@
 import { AddressInfo } from 'net';
 import { io, Socket } from 'socket.io-client';
-import { createTestApp, login, resetDb, seedProblem, TestContext, TestUser } from './helpers';
+import { createTestApp, linkLeetCode, login, resetDb, seedProblem, TestContext, TestUser } from './helpers';
 
 describe('Authorization: squads, challenges, devices (e2e)', () => {
   let ctx: TestContext;
@@ -22,6 +22,7 @@ describe('Authorization: squads, challenges, devices (e2e)', () => {
     groupId = g.body.data.id;
     inviteCode = g.body.data.code;
     await ctx.http().post('/api/v1/groups/join').set(member.auth).send({ code: inviteCode }).expect(201);
+    await linkLeetCode(ctx, member, 'member_lc');
   });
 
   afterAll(async () => {
@@ -113,6 +114,7 @@ describe('Authorization: squads, challenges, devices (e2e)', () => {
       await new Promise((r) => setTimeout(r, 300));
 
       // A member solving broadcasts activity_created to the squad room.
+      ctx.leetcode.addSubmission('member_lc', 'two-sum');
       await ctx.http().post('/api/v1/leetcode/extension-solve').set(member.auth)
         .send({ problemSlug: 'two-sum', language: 'python3' });
       await new Promise((r) => setTimeout(r, 500));
@@ -124,6 +126,7 @@ describe('Authorization: squads, challenges, devices (e2e)', () => {
       const received: unknown[] = [];
       s.on('activity_created', (d) => received.push(d));
       await ctx.prisma.solve.deleteMany({});
+      ctx.leetcode.addSubmission('member_lc', 'two-sum', new Date(Date.now() + 1000));
       await ctx.http().post('/api/v1/leetcode/extension-solve').set(member.auth)
         .send({ problemSlug: 'two-sum', language: 'python3' });
       await new Promise((r) => setTimeout(r, 500));

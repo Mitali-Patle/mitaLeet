@@ -110,3 +110,12 @@ export async function getXp(ctx: TestContext, user: TestUser): Promise<number> {
   const res = await ctx.http().get('/api/v1/gamification/progression').set(user.auth).expect(200);
   return res.body.data.xp;
 }
+
+/** Link a (fake) LeetCode account to a user as if ownership had been verified. */
+export async function linkLeetCode(ctx: TestContext, user: TestUser, lcUsername: string): Promise<void> {
+  ctx.leetcode.addUser(lcUsername);
+  await ctx.prisma.userProfile.update({
+    where: { userId: user.id },
+    data: { leetcodeUsername: lcUsername.toLowerCase(), leetcodeVerified: true, leetcodeLinkedAt: new Date() },
+  });
+}

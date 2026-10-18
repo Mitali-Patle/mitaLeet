@@ -9,3 +9,4 @@ process.env.JWT_REFRESH_EXPIRES_IN = '30d';
 process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
 process.env.FIREBASE_PROJECT_ID = 'test-project';
 process.env.ENABLE_DEV_LOGIN = 'true';
+process.env.LEETCODE_QUICK_SYNC_INTERVAL_MS = '0';

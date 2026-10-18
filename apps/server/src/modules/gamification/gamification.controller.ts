@@ -5,6 +5,7 @@ import { XPService } from './xp.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { CreateChallengeDto } from './dto/challenge.dto';
 
 @Controller('gamification')
 export class GamificationController {
@@ -67,7 +68,7 @@ export class GamificationController {
   createChallenge(
     @CurrentUser() user: JwtPayload,
     @Param('groupId') groupId: string,
-    @Body() body: any,
+    @Body() body: CreateChallengeDto,
   ) {
     return this.challenge.createChallenge(user.sub, groupId, body);
   }

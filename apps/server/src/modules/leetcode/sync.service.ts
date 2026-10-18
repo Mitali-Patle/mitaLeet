@@ -1,24 +1,60 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { Difficulty, Prisma } from '@prisma/client';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { LeetCodeClient, LeetCodeSubmission } from './leetcode.client';
 import { StreakService } from './streak.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
 
-const XP_TABLE = { EASY: 10, MEDIUM: 25, HARD: 50 } as const;
+/** A solve that was just recorded from LeetCode's own accepted-submission list. */
+export interface VerifiedSolve {
+  problemSlug: string;
+  problemName: string;
+  difficulty: Difficulty;
+  language: string;
+  solvedAt: Date;
+}
 
+export interface NewSolvesEvent {
+  userId: string;
+  solves: VerifiedSolve[];
+}
+
+type NewSolvesListener = (event: NewSolvesEvent) => Promise<void>;
+
+/**
+ * The only writer of Solve rows. Every solve comes from LeetCode's
+ * recentAcSubmissionList for the user's verified account, never from a client
+ * claim. Other modules (XP, races, challenges) react through onNewSolves().
+ */
 @Injectable()
 export class SyncService {
   private readonly logger = new Logger(SyncService.name);
   private readonly MAX_CONCURRENT = 5;
   private activeSyncs = 0;
+  private readonly listeners: NewSolvesListener[] = [];
+
+  /** Per-user throttle for on-demand verification, to stay polite to LeetCode. */
+  private readonly lastQuickSync = new Map<string, number>();
+  private readonly quickSyncIntervalMs: number;
+  /** Concurrent callers for the same user share one LeetCode round-trip. */
+  private readonly inFlight = new Map<string, Promise<VerifiedSolve[]>>();
 
   constructor(
     private prisma: PrismaService,
     private leetcode: LeetCodeClient,
     private streakService: StreakService,
     private events: EventsGateway,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.quickSyncIntervalMs = Number(config.get('LEETCODE_QUICK_SYNC_INTERVAL_MS', 15_000));
+  }
+
+  /** Subscribe to newly recorded verified solves. */
+  onNewSolves(listener: NewSolvesListener): void {
+    this.listeners.push(listener);
+  }
 
   /** Queue and process a sync job for a user. */
   async triggerSync(userId: string, type = 'leetcode_sync') {
@@ -29,6 +65,31 @@ export class SyncService {
       this.logger.error(`Sync ${job.id} crashed: ${err}`),
     );
     return job;
+  }
+
+  /**
+   * Fetch the user's latest accepted submissions from LeetCode and record any
+   * new ones. Throttled per user; returns the solves that were newly recorded.
+   */
+  async syncRecent(userId: string): Promise<VerifiedSolve[]> {
+    const running = this.inFlight.get(userId);
+    if (running) return running;
+
+    const job = this.doSyncRecent(userId).finally(() => this.inFlight.delete(userId));
+    this.inFlight.set(userId, job);
+    return job;
+  }
+
+  private async doSyncRecent(userId: string): Promise<VerifiedSolve[]> {
+    const last = this.lastQuickSync.get(userId) ?? 0;
+    if (Date.now() - last < this.quickSyncIntervalMs) return [];
+    this.lastQuickSync.set(userId, Date.now());
+
+    const username = await this.verifiedUsername(userId);
+    if (!username) return [];
+
+    const submissions = await this.leetcode.fetchRecentSubmissions(username, 20);
+    return this.ingestAndPublish(userId, submissions);
   }
 
   /** Every 30 min: sync all verified linked users. */
@@ -68,16 +129,11 @@ export class SyncService {
         data: { status: 'RUNNING', startedAt: new Date() },
       });
 
-      const profile = await this.prisma.userProfile.findUnique({
-        where: { userId },
-        select: { leetcodeUsername: true },
-      });
-      if (!profile?.leetcodeUsername) {
-        await this.failJob(jobId, 'No LeetCode username linked');
+      const username = await this.verifiedUsername(userId);
+      if (!username) {
+        await this.failJob(jobId, 'No verified LeetCode username linked');
         return;
       }
-
-      const username = profile.leetcodeUsername;
 
       // 1. Sync aggregate stats
       const lcProfile = await this.leetcode.fetchUserProfile(username);
@@ -93,33 +149,17 @@ export class SyncService {
         });
       }
 
-      // 2. Ingest submissions
+      // 2. Ingest submissions (streak, daily counters, activities, listeners)
       const submissions = await this.leetcode.fetchRecentSubmissions(username, 50);
-      const { newSolves, hasTodaySolve, mostRecentSolveAt } = await this.ingestSubmissions(userId, submissions);
+      const newSolves = await this.ingestAndPublish(userId, submissions);
 
-      // 3. Update streak — only fire recordSolve for genuine today-solves.
-      // Historical back-fills (first sync) must not mark today as solved.
-      if (hasTodaySolve) {
-        await this.streakService.recordSolve(userId);
-      } else if (newSolves > 0 && mostRecentSolveAt) {
-        // First-time sync: anchor lastSolveDate to the actual most recent solve
-        // so streak continuity is correct going forward.
-        await this.streakService.anchorLastSolveDate(userId, mostRecentSolveAt);
-      }
-
-      // 4. Daily solve counters
-      await this.updateDailySolves(userId);
-
-      // 5. Recalculate XP
-      await this.recalculateXP(userId);
-
-      // 6. Complete
+      // 3. Complete
       await this.prisma.syncJob.update({
         where: { id: jobId },
         data: {
           status: 'COMPLETED',
           completedAt: new Date(),
-          result: { newSolves, totalFetched: submissions.length },
+          result: { newSolves: newSolves.length, totalFetched: submissions.length },
         },
       });
       await this.prisma.userProfile.update({
@@ -127,14 +167,12 @@ export class SyncService {
         data: { lastSyncAt: new Date() },
       });
 
-      // 7. Broadcast
       this.events.emitToUser(userId, WS_EVENTS.STREAK_UPDATE, {
         type: 'SYNC_COMPLETED',
-        newSolves,
+        newSolves: newSolves.length,
       });
-      if (newSolves > 0) await this.emitActivities(userId, submissions.slice(0, newSolves));
 
-      this.logger.log(`Sync done [${userId}]: ${newSolves} new solves`);
+      this.logger.log(`Sync done [${userId}]: ${newSolves.length} new solves`);
     } catch (err) {
       await this.failJob(jobId, String(err));
     } finally {
@@ -142,8 +180,38 @@ export class SyncService {
     }
   }
 
+  /** Record new submissions, update streak + daily counters, then notify. */
+  private async ingestAndPublish(
+    userId: string,
+    submissions: LeetCodeSubmission[],
+  ): Promise<VerifiedSolve[]> {
+    const { newSolves, hasTodaySolve, mostRecentSolveAt } = await this.ingestSubmissions(userId, submissions);
+
+    // Only fire recordSolve for genuine today-solves.
+    // Historical back-fills (first sync) must not mark today as solved.
+    if (hasTodaySolve) {
+      await this.streakService.recordSolve(userId);
+    } else if (newSolves.length > 0 && mostRecentSolveAt) {
+      // First-time sync: anchor lastSolveDate to the actual most recent solve
+      // so streak continuity is correct going forward.
+      await this.streakService.anchorLastSolveDate(userId, mostRecentSolveAt);
+    }
+
+    await this.updateDailySolves(userId);
+
+    if (newSolves.length > 0) {
+      await this.emitActivities(userId, newSolves);
+      for (const listener of this.listeners) {
+        await listener({ userId, solves: newSolves }).catch((err) =>
+          this.logger.error(`New-solves listener failed for ${userId}: ${err}`),
+        );
+      }
+    }
+    return newSolves;
+  }
+
   private async ingestSubmissions(userId: string, subs: LeetCodeSubmission[]) {
-    let newSolves = 0;
+    const newSolves: VerifiedSolve[] = [];
     let hasTodaySolve = false;
     let mostRecentSolveAt: Date | null = null;
 
@@ -166,12 +234,13 @@ export class SyncService {
       });
       if (!exists) {
         const problem = await this.prisma.problem.findUnique({ where: { slug: sub.slug } });
-        await this.prisma.solve.create({
+        const difficulty = problem?.difficulty ?? 'MEDIUM';
+        const created = await this.prisma.solve.create({
           data: {
             userId,
             problemSlug: sub.slug,
             problemName: sub.title,
-            difficulty: problem?.difficulty ?? 'MEDIUM',
+            difficulty,
             language: sub.language,
             runtime: sub.runtime,
             memory: sub.memory,
@@ -179,8 +248,19 @@ export class SyncService {
             source: 'sync',
             problemId: problem?.id,
           },
+        }).catch((err) => {
+          // Another sync recorded this exact submission first.
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return null;
+          throw err;
         });
-        newSolves++;
+        if (!created) continue;
+        newSolves.push({
+          problemSlug: sub.slug,
+          problemName: sub.title,
+          difficulty,
+          language: sub.language,
+          solvedAt,
+        });
 
         // Track whether any new solve actually happened today.
         if (solvedAt >= todayStart) hasTodaySolve = true;
@@ -238,28 +318,34 @@ export class SyncService {
     });
   }
 
-  private async recalculateXP(userId: string) {
-    const solves = await this.prisma.solve.findMany({ where: { userId }, select: { difficulty: true } });
-    const xp = solves.reduce((t, s) => t + (XP_TABLE[s.difficulty] ?? 10), 0);
-    await this.prisma.userProfile.update({ where: { userId }, data: { xp } });
-  }
-
-  private async emitActivities(userId: string, subs: LeetCodeSubmission[]) {
-    for (const sub of subs) {
-      const problem = await this.prisma.problem.findUnique({ where: { slug: sub.slug } });
+  private async emitActivities(userId: string, solves: VerifiedSolve[]) {
+    const memberships = await this.prisma.groupMember.findMany({ where: { userId }, select: { groupId: true } });
+    for (const solve of solves) {
       const activity = await this.prisma.activity.create({
         data: {
           userId,
-          type: problem?.difficulty === 'HARD' ? 'HARD_PROBLEM_SOLVED' : 'SOLVE',
-          data: { problemSlug: sub.slug, problemName: sub.title, difficulty: problem?.difficulty ?? 'MEDIUM', language: sub.language },
+          type: solve.difficulty === 'HARD' ? 'HARD_PROBLEM_SOLVED' : 'SOLVE',
+          data: {
+            problemSlug: solve.problemSlug,
+            problemName: solve.problemName,
+            difficulty: solve.difficulty,
+            language: solve.language,
+          },
         },
         include: { user: { select: { id: true, displayName: true, avatarUrl: true } } },
       });
-      const memberships = await this.prisma.groupMember.findMany({ where: { userId }, select: { groupId: true } });
       for (const { groupId } of memberships) {
         this.events.emitToGroup(groupId, WS_EVENTS.ACTIVITY_CREATED, activity);
       }
     }
+  }
+
+  private async verifiedUsername(userId: string): Promise<string | null> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+      select: { leetcodeUsername: true, leetcodeVerified: true },
+    });
+    return profile?.leetcodeVerified && profile.leetcodeUsername ? profile.leetcodeUsername : null;
   }
 
   private async failJob(jobId: string, error: string) {

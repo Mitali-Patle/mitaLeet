@@ -1,18 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { StreakService } from './streak.service';
-import { LeetCodeClient } from './leetcode.client';
-import { XPService } from '../gamification/xp.service';
-import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
+import { SyncService } from './sync.service';
 
 @Injectable()
 export class SolvesService {
   constructor(
     private prisma: PrismaService,
     private streakService: StreakService,
-    private leetcode: LeetCodeClient,
-    private xpService: XPService,
-    private events: EventsGateway,
+    private sync: SyncService,
   ) {}
 
   /** Get recent solves for a user. */
@@ -89,113 +85,29 @@ export class SolvesService {
   }
 
   /**
-   * Record a solve submitted by the browser extension in real time.
-   * Idempotent — skips if a matching solve already exists within a 5-minute window.
+   * Called by the browser extension right after LeetCode shows "Accepted".
+   * The client's claim is only a hint: we re-read the user's accepted
+   * submissions from LeetCode and record whatever is really there.
    */
-  async extensionSolve(
+  async verifyExtensionSolve(
     userId: string,
     problemSlug: string,
-    language: string,
-    solvedAt: Date,
-  ): Promise<{ created: boolean }> {
-    await this.ensureProblem(problemSlug);
-
-    const windowMs = 5 * 60 * 1000;
-    const duplicate = await this.prisma.solve.findFirst({
-      where: {
-        userId,
-        problemSlug,
-        solvedAt: {
-          gte: new Date(solvedAt.getTime() - windowMs),
-          lte: new Date(solvedAt.getTime() + windowMs),
-        },
-      },
-    });
-    if (duplicate) return { created: false };
-
-    const problem = await this.prisma.problem.findUnique({ where: { slug: problemSlug } });
-    const difficulty = (problem?.difficulty ?? 'MEDIUM') as 'EASY' | 'MEDIUM' | 'HARD';
-
-    await this.prisma.solve.create({
-      data: {
-        userId,
-        problemSlug,
-        problemName: problem?.title ?? problemSlug,
-        difficulty,
-        language,
-        solvedAt,
-        source: 'extension',
-        problemId: problem?.id,
-      },
-    });
-
-    await this.updateDailySolves(userId);
-    await this.streakService.recordSolve(userId);
-
-    const today = this.todayStart();
-    const todayCount = await this.prisma.solve.count({
-      where: { userId, solvedAt: { gte: today } },
-    });
-    await this.xpService.awardSolveXP(userId, difficulty, todayCount === 1);
-
-    const activity = await this.prisma.activity.create({
-      data: {
-        userId,
-        type: difficulty === 'HARD' ? 'HARD_PROBLEM_SOLVED' : 'SOLVE',
-        data: { problemSlug, problemName: problem?.title ?? problemSlug, difficulty, language, source: 'extension' } as any,
-      },
-    });
-    const memberships = await this.prisma.groupMember.findMany({
+  ): Promise<{ created: boolean; verified: boolean }> {
+    const profile = await this.prisma.userProfile.findUnique({
       where: { userId },
-      select: { groupId: true },
+      select: { leetcodeUsername: true, leetcodeVerified: true },
     });
-    for (const { groupId } of memberships) {
-      this.events.emitToGroup(groupId, WS_EVENTS.ACTIVITY_CREATED, activity);
+    if (!profile?.leetcodeUsername || !profile.leetcodeVerified) {
+      throw new BadRequestException('Link and verify your LeetCode account first');
     }
 
-    return { created: true };
-  }
-
-  private async ensureProblem(slug: string) {
-    const exists = await this.prisma.problem.findUnique({ where: { slug } });
-    if (exists) return;
-    const data = await this.leetcode.fetchProblem(slug);
-    if (data) {
-      await this.prisma.problem.upsert({
-        where: { slug },
-        update: { title: data.title, acceptanceRate: data.acceptanceRate, topicTags: data.topicTags },
-        create: { slug: data.slug, title: data.title, difficulty: data.difficulty, acceptanceRate: data.acceptanceRate, isPremium: data.isPremium, topicTags: data.topicTags },
-      });
-    } else {
-      await this.prisma.problem.upsert({
-        where: { slug },
-        update: {},
-        create: { slug, title: slug, difficulty: 'MEDIUM' },
-      });
-    }
-  }
-
-  private async updateDailySolves(userId: string) {
-    const today = this.todayStart();
-    const solves = await this.prisma.solve.findMany({ where: { userId, solvedAt: { gte: today } } });
-    if (!solves.length) return;
-    await this.prisma.dailySolve.upsert({
-      where: { userId_date: { userId, date: today } },
-      update: {
-        solveCount: solves.length,
-        easyCount: solves.filter((s) => s.difficulty === 'EASY').length,
-        mediumCount: solves.filter((s) => s.difficulty === 'MEDIUM').length,
-        hardCount: solves.filter((s) => s.difficulty === 'HARD').length,
-      },
-      create: {
-        userId,
-        date: today,
-        solveCount: solves.length,
-        easyCount: solves.filter((s) => s.difficulty === 'EASY').length,
-        mediumCount: solves.filter((s) => s.difficulty === 'MEDIUM').length,
-        hardCount: solves.filter((s) => s.difficulty === 'HARD').length,
-      },
-    });
+    const newSolves = await this.sync.syncRecent(userId);
+    const created = newSolves.some((s) => s.problemSlug === problemSlug);
+    const verified = created || !!(await this.prisma.solve.findFirst({
+      where: { userId, problemSlug, solvedAt: { gte: new Date(Date.now() - 2 * 60 * 60_000) } },
+      select: { id: true },
+    }));
+    return { created, verified };
   }
 
   private todayStart() {
