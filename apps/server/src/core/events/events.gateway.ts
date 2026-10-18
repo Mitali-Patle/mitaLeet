@@ -85,7 +85,17 @@ export class EventsGateway
     private prisma: PrismaService,
   ) {}
 
-  afterInit() {
+  afterInit(server: Server) {
+    // Authenticate during the handshake, before 'connect' reaches the client.
+    // Doing it in handleConnection let a client's first message (e.g. join_room
+    // sent right after connecting) arrive before its user was attached.
+    server.use(async (socket, next) => {
+      const user = await this.authenticateSocket(socket);
+      if (!user) return next(new Error('Unauthorized'));
+      (socket as any).user = user;
+      next();
+    });
+
     // Sweep stale connections every 60s
     this.heartbeatInterval = setInterval(() => this.sweepStale(), 60_000);
   }
@@ -96,10 +106,9 @@ export class EventsGateway
 
   async handleConnection(client: Socket) {
     try {
-      const user = await this.authenticateSocket(client);
+      const user = (client as any).user as JwtPayload | undefined; // set by the handshake middleware
       if (!user) { client.disconnect(); return; }
 
-      (client as any).user = user;
       this.trackConnection(user.sub, client.id);
 
       // Set user ONLINE in DB
