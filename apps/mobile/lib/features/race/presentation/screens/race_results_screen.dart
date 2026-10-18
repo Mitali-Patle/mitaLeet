@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -101,7 +102,7 @@ class RaceResultsScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+                onPressed: () => context.go('/races'),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.surfaceBorder),
                   shape: RoundedRectangleBorder(borderRadius: AppRadius.cardRadius),

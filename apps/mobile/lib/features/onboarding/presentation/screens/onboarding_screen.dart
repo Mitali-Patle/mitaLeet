@@ -7,7 +7,6 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../shared/widgets/lc_toast.dart';
 import '../../../auth/providers/auth_provider.dart';
-import '../../../leetcode/presentation/screens/leetcode_link_screen.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -62,15 +61,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (!mounted) return;
 
     ref.read(authStateProvider.notifier).completeOnboarding();
-    context.go('/');
 
     // Linking needs a verification step, so continue on the LeetCode screen.
     final leetcode = _leetcodeController.text.trim();
-    if (leetcode.isNotEmpty) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => LeetCodeLinkScreen(initialUsername: leetcode)),
-      );
-    }
+    context.go(leetcode.isEmpty
+        ? '/'
+        : Uri(path: '/coding/leetcode', queryParameters: {'username': leetcode}).toString());
   }
 
   void _toast(String title, String subtitle) {

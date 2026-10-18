@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -12,7 +13,6 @@ import '../widgets/lc_streak_card.dart';
 import '../widgets/lc_solve_card.dart';
 import '../widgets/lc_heatmap.dart';
 import '../widgets/lc_diff_breakdown.dart';
-import 'leetcode_link_screen.dart';
 
 /// Main coding activity dashboard screen.
 class CodingActivityScreen extends ConsumerStatefulWidget {
@@ -77,12 +77,16 @@ class _CodingActivityScreenState extends ConsumerState<CodingActivityScreen> {
               onPressed: () => ref.read(leetcodeProvider.notifier).triggerSync(),
             ),
           IconButton(
+            icon: const Icon(PhosphorIconsBold.chartBar, size: 18),
+            color: AppColors.onSurfaceMedium,
+            tooltip: 'Analytics',
+            onPressed: () => context.push('/coding/analytics'),
+          ),
+          IconButton(
             icon: const Icon(PhosphorIconsBold.gear, size: 18),
             color: AppColors.onSurfaceMedium,
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const LeetCodeLinkScreen()),
-            ),
+            tooltip: 'LeetCode account',
+            onPressed: () => context.push('/coding/leetcode'),
           ),
         ],
       ),
@@ -269,10 +273,7 @@ class _NotLinkedScreen extends StatelessWidget {
                     'LINK LEETCODE',
                     style: AppTypography.tacticalLabel(fontSize: 11, color: AppColors.onSurface),
                   ),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LeetCodeLinkScreen()),
-                  ),
+                  onPressed: () => context.push('/coding/leetcode'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 14),

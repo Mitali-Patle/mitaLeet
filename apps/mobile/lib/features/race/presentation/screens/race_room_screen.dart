@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/phosphor_icons.dart';
@@ -15,7 +16,6 @@ import '../../../../core/socket/socket_events.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
 import '../../../../shared/widgets/lc_button.dart';
 import '../../../../shared/widgets/lc_toast.dart';
-import 'race_results_screen.dart';
 
 class RaceRoomScreen extends ConsumerStatefulWidget {
   const RaceRoomScreen({super.key, required this.roomId, required this.isCreator});
@@ -101,10 +101,7 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
       if (!mounted) return;
       _elapsedTimer?.cancel();
       final results = (data['results'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => RaceResultsScreen(results: results)),
-      );
+      context.pushReplacement('/races/${widget.roomId}/results', extra: results);
     });
   }
 

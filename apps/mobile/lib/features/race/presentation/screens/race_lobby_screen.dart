@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -7,7 +8,6 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
 import '../../../../shared/widgets/lc_button.dart';
-import 'race_room_screen.dart';
 
 /// Solve race lobby — create or join a race room.
 class RaceLobbyScreen extends ConsumerStatefulWidget {
@@ -40,10 +40,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
       final res = await api.post('/races', data: { 'problemSlug': slug });
       final room = res.data['data'];
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => RaceRoomScreen(roomId: room['id'], isCreator: true)),
-      );
+      context.pushReplacement('/races/${room['id']}?host=1');
     } catch (e) {
       setState(() => _error = 'Failed to create room');
     } finally {
@@ -60,10 +57,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
       final res = await api.post('/races/join', data: { 'code': code });
       final room = res.data['data'];
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => RaceRoomScreen(roomId: room['id'], isCreator: false)),
-      );
+      context.pushReplacement('/races/${room['id']}');
     } catch (e) {
       setState(() => _error = 'Room not found or already started');
     } finally {

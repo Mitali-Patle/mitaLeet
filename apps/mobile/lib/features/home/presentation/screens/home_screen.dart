@@ -58,10 +58,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: LCAppBar(
         title: 'mitaLeet',
         actions: [
-          // Squads shortcut
+          IconButton(
+            icon: const Icon(PhosphorIconsBold.flagCheckered, size: 20),
+            onPressed: () => context.push('/races'),
+            color: AppColors.onSurfaceMedium,
+            tooltip: 'Races',
+          ),
           IconButton(
             icon: const Icon(PhosphorIconsBold.usersThree, size: 20),
-            onPressed: () => context.push('/squad'),
+            onPressed: () => context.push('/squads'),
             color: AppColors.onSurfaceMedium,
             tooltip: 'My Squads',
           ),

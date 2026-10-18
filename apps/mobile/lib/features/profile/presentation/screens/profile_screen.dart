@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -293,6 +294,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const SizedBox(height: AppSpacing.sectionGap),
 
+              // ── Social and progress ─────────────────────────
+              _NavRow(
+                icon: PhosphorIconsBold.users,
+                label: 'Friends',
+                onTap: () => context.push('/profile/friends'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _NavRow(
+                icon: PhosphorIconsBold.chartLineUp,
+                label: 'Progression and achievements',
+                onTap: () => context.push('/profile/progression'),
+              ),
+              const SizedBox(height: AppSpacing.sectionGap),
+
               // ── Extension token ─────────────────────────────
               const _ExtensionTokenCard(),
               const SizedBox(height: AppSpacing.sectionGap),
@@ -492,6 +507,38 @@ class _DifficultyRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A tappable row that opens another page.
+class _NavRow extends StatelessWidget {
+  const _NavRow({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceVariant,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: AppColors.onSurfaceMedium),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium)),
+              const Icon(PhosphorIconsBold.caretRight, size: 14, color: AppColors.onSurfaceDim),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

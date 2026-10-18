@@ -6,6 +6,16 @@
 import 'package:flutter/widgets.dart';
 
 abstract final class PhosphorIconsBold {
+  static const IconData arrowLeft = IconData(0xe058, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData arrowUpRight = IconData(0xe092, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData caretRight = IconData(0xe13a, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData chartBar = IconData(0xe150, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData chartLineUp = IconData(0xe156, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData info = IconData(0xe2ce, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData medal = IconData(0xe320, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData signOut = IconData(0xe42a, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData target = IconData(0xe47c, fontFamily: 'PhosphorBold', matchTextDirection: true);
+  static const IconData userPlus = IconData(0xe4d0, fontFamily: 'PhosphorBold', matchTextDirection: true);
   static const IconData arrowRight = IconData(0xe06c, fontFamily: 'PhosphorBold', matchTextDirection: true);
   static const IconData arrowsClockwise = IconData(0xe094, fontFamily: 'PhosphorBold', matchTextDirection: true);
   static const IconData at = IconData(0xe0ac, fontFamily: 'PhosphorBold', matchTextDirection: true);

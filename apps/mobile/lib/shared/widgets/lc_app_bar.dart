@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../core/theme/phosphor_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 
@@ -33,6 +35,17 @@ class LCAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Detail pages get a back button automatically; tab roots have nothing
+    // to go back to.
+    final leading = this.leading ??
+        (GoRouter.maybeOf(context)?.canPop() ?? false
+            ? IconButton(
+                icon: const Icon(PhosphorIconsBold.arrowLeft, size: 20),
+                tooltip: 'Back',
+                color: AppColors.onSurfaceMedium,
+                onPressed: () => context.pop(),
+              )
+            : null);
     return AppBar(
       backgroundColor: AppColors.surface,
       surfaceTintColor: Colors.transparent,

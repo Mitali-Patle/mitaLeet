@@ -83,17 +83,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
     clientId: kIsWeb ? _webClientId : null,
     serverClientId: _serverClientId,
   );
-  /// Check persisted auth on app launch.
-  Future<void> checkAuth() async {
-    state = state.copyWith(isLoading: true);
+  /// True once the saved session has been checked at launch. The router
+  /// waits for this before deciding between login and the app, so a page
+  /// reload on any URL doesn't bounce a signed-in user to /login.
+  bool get sessionRestored => _restore != null && _restoreDone;
+  Future<void>? _restore;
+  bool _restoreDone = false;
+
+  /// Check persisted auth on app launch. Safe to call repeatedly: every
+  /// caller shares the first check.
+  Future<void> checkAuth() {
+    return _restore ??= _checkAuthOnce().whenComplete(() => _restoreDone = true);
+  }
+
+  Future<void> _checkAuthOnce() async {
     try {
-      // 10-second timeout as a safety net (e.g., catastrophic network hang).
-      // SecureStorage PlatformException on web is handled inside _performAuthCheck.
+      // Timeout as a safety net for a hung network; _performAuthCheck keeps
+      // the saved session when the server is merely slow or unreachable.
       await _performAuthCheck().timeout(const Duration(seconds: 10));
     } catch (e) {
       debugPrint('[Auth] checkAuth timeout or error: $e');
-      state = const AuthState();
+      await _keepSavedSessionOffline();
     }
+  }
+
+  /// Server unreachable or slow (e.g. a cold start): stay signed in with the
+  /// saved session instead of forgetting it. Requests retry later, and a
+  /// real rejection still ends the session via the API client.
+  Future<void> _keepSavedSessionOffline() async {
+    String? token;
+    String? userId;
+    try {
+      token = await storage.getAccessToken();
+      userId = await storage.getUserId();
+    } catch (_) {}
+    state = token != null && userId != null
+        ? AuthState(isAuthenticated: true, userId: userId)
+        : const AuthState();
   }
 
   Future<void> _performAuthCheck() async {
@@ -128,9 +154,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
           _syncTimezone();
           return;
         }
-      } catch (_) {
-        // Token invalid or expired — try refresh
-        await _tryRefresh();
+      } on DioException catch (e) {
+        // On 401 the API client has already tried a refresh and, if the
+        // server rejected it, ended the session (tokens cleared). Anything
+        // else (timeout, offline, 5xx) is not a reason to sign out.
+        if (e.response?.statusCode == 401 && await storage.getAccessToken() == null) {
+          state = const AuthState();
+          return;
+        }
+        debugPrint('[Auth] session check failed without a rejection: ${e.type}');
+        await _keepSavedSessionOffline();
+        if (state.isAuthenticated) await socketService.connect();
         return;
       }
     }
@@ -333,37 +367,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     socketService.disconnect();
     await storage.clearAll();
     state = const AuthState();
-  }
-
-  /// Try to refresh the access token.
-  Future<void> _tryRefresh() async {
-    try {
-      final refreshToken = await storage.getRefreshToken();
-      if (refreshToken == null) {
-        state = const AuthState();
-        return;
-      }
-
-      final response = await apiClient.post(
-        ApiEndpoints.authRefresh,
-        data: {'refreshToken': refreshToken},
-      );
-
-      final data = response.data['data'];
-      await storage.setAccessToken(data['accessToken']);
-      await storage.setRefreshToken(data['refreshToken']);
-
-      // Validate new tokens and fetch user profile directly,
-      // avoiding the isLoading toggle and timeout wrapper in checkAuth().
-      await _performAuthCheck();
-    } catch (_) {
-      try {
-        await storage.clearAll();
-      } catch (_) {
-        // Ignore if clearAll also fails (e.g., MissingPluginException on web)
-      }
-      state = const AuthState();
-    }
   }
 }
 

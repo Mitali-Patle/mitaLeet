@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -201,6 +202,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
                     child: _SquadCard(
+                      onTap: () => context.push('/squads/${group.id}'),
                       name: group.name,
                       memberCount: group.memberCount,
                       activeMemberCount: group.activeMemberCount,
@@ -219,6 +221,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
 
 class _SquadCard extends StatelessWidget {
   const _SquadCard({
+    required this.onTap,
     required this.name,
     required this.memberCount,
     required this.activeMemberCount,
@@ -226,6 +229,7 @@ class _SquadCard extends StatelessWidget {
     this.rank,
   });
 
+  final VoidCallback onTap;
   final String name;
   final int memberCount;
   final int activeMemberCount;
@@ -236,7 +240,7 @@ class _SquadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LCCard(
       metallicAccent: true,
-      onTap: () {},
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

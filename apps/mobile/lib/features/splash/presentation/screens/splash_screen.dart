@@ -8,7 +8,11 @@ import '../../../auth/providers/auth_provider.dart';
 
 /// Splash screen with animated logo and auth check.
 class SplashScreen extends ConsumerStatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.from});
+
+  /// The page that was requested before the saved session was restored
+  /// (e.g. after a browser reload). Only in-app paths are honoured.
+  final String? from;
 
   @override
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
@@ -57,35 +61,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _startSequence() async {
-    // Safety timer — if anything hangs, force navigate to login
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        debugPrint('[Splash] Safety timer fired — forcing /login');
-        context.go('/login');
-      }
+    _logoController.forward();
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) _textController.forward();
     });
 
-    await Future.delayed(const Duration(milliseconds: 200));
-    _logoController.forward();
-    await Future.delayed(const Duration(milliseconds: 400));
-    _textController.forward();
-
-    // Check auth and navigate
-    await Future.delayed(const Duration(milliseconds: 1200));
+    // Restore the saved session while the logo animates; checkAuth has its
+    // own timeout and never throws, so there is no need for a safety timer
+    // (the old 4-second one sent signed-in users to /login on slow networks).
+    await Future.wait([
+      ref.read(authStateProvider.notifier).checkAuth(),
+      Future.delayed(const Duration(milliseconds: 500)),
+    ]);
     if (!mounted) return;
 
-    bool isAuth = false;
-    try {
-      await ref.read(authStateProvider.notifier).checkAuth();
-      if (mounted) {
-        isAuth = ref.read(authStateProvider).isAuthenticated;
-      }
-    } catch (e) {
-      debugPrint('[Splash] checkAuth error: $e');
-    }
-
-    if (!mounted) return;
-    context.go(isAuth ? '/' : '/login');
+    final from = widget.from;
+    final target = from != null && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/splash')
+        ? from
+        : '/';
+    // The router's redirect sends signed-out users to /login from here.
+    context.go(target);
   }
 
   @override
