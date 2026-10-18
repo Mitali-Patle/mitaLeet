@@ -5,7 +5,8 @@ import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_endpoints.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
 import '../../../../shared/widgets/lc_stat_container.dart';
 import '../../../../shared/widgets/lc_streak_indicator.dart';
@@ -293,7 +294,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: AppSpacing.sectionGap),
 
               // ── Extension token ─────────────────────────────
-              _ExtensionTokenCard(storage: ref.read(secureStorageProvider)),
+              const _ExtensionTokenCard(),
               const SizedBox(height: AppSpacing.sectionGap),
 
               // ── Sign out ────────────────────────────────────
@@ -335,30 +336,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
 // ── Extension Token Card ─────────────────────────────────────────────────────
 
-class _ExtensionTokenCard extends StatefulWidget {
-  const _ExtensionTokenCard({required this.storage});
-  final SecureStorage storage;
+/// Generates a dedicated, revocable extension token (valid 90 days, usable
+/// only for reporting solves) instead of exposing the app's own session.
+class _ExtensionTokenCard extends ConsumerStatefulWidget {
+  const _ExtensionTokenCard();
 
   @override
-  State<_ExtensionTokenCard> createState() => _ExtensionTokenCardState();
+  ConsumerState<_ExtensionTokenCard> createState() => _ExtensionTokenCardState();
 }
 
-class _ExtensionTokenCardState extends State<_ExtensionTokenCard> {
+class _ExtensionTokenCardState extends ConsumerState<_ExtensionTokenCard> {
   bool _copied = false;
+  bool _busy = false;
 
   Future<void> _copyToken() async {
-    final token = await widget.storage.getAccessToken();
-    if (token == null || !mounted) return;
-    await Clipboard.setData(ClipboardData(text: token));
-    setState(() => _copied = true);
-    if (mounted) {
+    if (_busy) return;
+    setState(() => _busy = true);
+    String? token;
+    try {
+      final res = await ref.read(apiClientProvider).post(ApiEndpoints.authExtensionToken);
+      token = res.data['data']['token'] as String?;
+    } catch (_) {
+      token = null;
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (token == null) {
       LCToastManager.show(
         context,
-        title: 'Token copied',
-        subtitle: 'Paste it into the mitaLeet Chrome extension',
-        accentColor: AppColors.primary,
+        title: 'Could not create token',
+        subtitle: 'Check your connection and try again',
+        accentColor: AppColors.error,
       );
+      return;
     }
+    await Clipboard.setData(ClipboardData(text: token));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    LCToastManager.show(
+      context,
+      title: 'New extension token copied',
+      subtitle: 'Paste it into the mitaLeet Chrome extension. Any older token stops working.',
+      accentColor: AppColors.primary,
+    );
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => _copied = false);
   }
@@ -381,7 +401,8 @@ class _ExtensionTokenCardState extends State<_ExtensionTokenCard> {
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Copy your API token and paste it into the mitaLeet Chrome extension to enable real-time solve tracking.',
+            'Tap to create a token for the mitaLeet Chrome extension (valid 90 days, can only report solves). '
+            'Creating a new one disconnects the old one.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.onSurfaceMedium,
                   height: 1.5,
@@ -402,7 +423,7 @@ class _ExtensionTokenCardState extends State<_ExtensionTokenCard> {
                 children: [
                   Expanded(
                     child: Text(
-                      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX...',
+                      _busy ? 'GENERATING…' : 'TAP TO GENERATE AND COPY',
                       style: AppTypography.tacticalLabel(
                         fontSize: 9,
                         color: AppColors.onSurfaceDim,

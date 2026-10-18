@@ -378,6 +378,7 @@ export class EventsGateway
     if (!token) return null;
     try {
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+      if (payload.scope === 'extension') return null; // extension tokens are HTTP-only
       // Reject tokens whose session was logged out.
       const session = await this.prisma.userSession.findUnique({
         where: { id: payload.sessionId ?? '' },

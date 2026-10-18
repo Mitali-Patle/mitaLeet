@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Delete, Body, Query, Param,
+  Controller, Get, Post, Delete, Body, Query, Param, ParseUUIDPipe,
 } from '@nestjs/common';
 import { LeetCodeService } from './leetcode.service';
 import { SolvesService } from './solves.service';
@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import { RateLimit } from '../../common/throttle/rate-limit';
 import { HeatmapQueryDto, LimitQueryDto } from '../../common/dto/query.dto';
+import { AllowExtensionToken } from '../../common/decorators/allow-extension-token.decorator';
 
 class LinkAccountDto {
   @IsNotEmpty() @IsString() @MaxLength(50)
@@ -32,6 +33,18 @@ class ExtensionSolveDto {
 
   @IsOptional() @IsInt() @Min(0)
   durationMs?: number;
+}
+
+class StartSessionDto {
+  @IsString() @MaxLength(120) @Matches(PROBLEM_SLUG)
+  problemSlug!: string;
+
+  // Sent by existing extension builds; not used.
+  @IsOptional() @IsString() @MaxLength(40)
+  language?: string;
+
+  @IsOptional() @IsDateString()
+  startedAt?: string;
 }
 
 @Controller('leetcode')
@@ -81,6 +94,7 @@ export class LeetCodeController {
 
   // ── Extension real-time solve ──────────────────────────────────────
 
+  @AllowExtensionToken()
   @RateLimit(30)
   @Post('extension-solve')
   extensionSolve(@CurrentUser() user: JwtPayload, @Body() dto: ExtensionSolveDto) {
@@ -113,18 +127,17 @@ export class LeetCodeController {
 
   // ── Solve sessions ─────────────────────────────────────────────
 
+  @AllowExtensionToken()
   @Post('sessions')
-  startSession(
-    @CurrentUser() user: JwtPayload,
-    @Body('problemSlug') slug: string,
-  ) {
-    return this.solvesService.startSession(user.sub, slug);
+  startSession(@CurrentUser() user: JwtPayload, @Body() dto: StartSessionDto) {
+    return this.solvesService.startSession(user.sub, dto.problemSlug);
   }
 
+  @AllowExtensionToken()
   @Post('sessions/:id/complete')
   completeSession(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.solvesService.completeSession(id, user.sub);
   }

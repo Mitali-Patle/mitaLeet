@@ -13,6 +13,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload, TokenPair } from './types';
 import { GoogleAuthDto, RefreshTokenDto } from './dto/auth.dto';
 
+/** Marks the session row that backs a browser-extension token (one per user). */
+const EXTENSION_SESSION_MARKER = 'mitaleet-extension-token';
+const EXTENSION_TOKEN_DAYS = 90;
+
 // ── Cert URLs ─────────────────────────────────────────────────────────────────
 // Fetched directly (not via google-auth-library / firebase-admin, whose caches
 // returned empty results on some hosts) and cached per Cache-Control max-age.
@@ -319,6 +323,36 @@ export class AuthService implements OnModuleInit {
         ],
       },
     });
+  }
+
+  /**
+   * Issue a long-lived, revocable, extension-scoped token. It is backed by its
+   * own session row (so logout-all and revoke kill it via the normal session
+   * check) and replaces any previous extension token of the user.
+   */
+  async issueExtensionToken(userId: string, email: string): Promise<{ token: string; expiresAt: Date }> {
+    await this.revokeExtensionToken(userId);
+    const sessionId = uuid();
+    const expiresAt = new Date(Date.now() + EXTENSION_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+    await this.prisma.userSession.create({
+      data: {
+        id: sessionId,
+        userId,
+        userAgent: EXTENSION_SESSION_MARKER,
+        // never handed out: this session cannot be refreshed
+        refreshToken: this.hashToken(randomBytes(32).toString('base64url')),
+        expiresAt,
+      },
+    });
+    const token = await this.jwtService.signAsync(
+      { sub: userId, email, sessionId, scope: 'extension' } as JwtPayload,
+      { expiresIn: `${EXTENSION_TOKEN_DAYS}d` },
+    );
+    return { token, expiresAt };
+  }
+
+  async revokeExtensionToken(userId: string): Promise<void> {
+    await this.prisma.userSession.deleteMany({ where: { userId, userAgent: EXTENSION_SESSION_MARKER } });
   }
 
   /** True while the session behind an access token has not been logged out or rotated away. */

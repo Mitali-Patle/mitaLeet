@@ -13,11 +13,13 @@ import { UsersService } from './users.service';
 import { UpdateProfileDto, RegisterDeviceDto, DeleteAccountDto } from './dto/users.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
+import { AllowExtensionToken } from '../../common/decorators/allow-extension-token.decorator';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @AllowExtensionToken() // the extension popup shows who it is linked to
   @Get('me')
   getMe(@CurrentUser() user: JwtPayload) {
     return this.usersService.getMe(user.sub);

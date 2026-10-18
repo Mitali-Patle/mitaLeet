@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Delete,
   Body,
   HttpCode,
   HttpStatus,
@@ -48,6 +49,20 @@ export class AuthController {
   async logout(@CurrentUser() user: JwtPayload, @Body() dto: LogoutDto) {
     await this.authService.logout(user.sub, user.sessionId, dto.refreshToken);
     return { message: 'Logged out' };
+  }
+
+  /** Create a token for the browser extension (replaces the previous one). */
+  @RateLimit(5)
+  @Post('extension-token')
+  @HttpCode(HttpStatus.CREATED)
+  issueExtensionToken(@CurrentUser() user: JwtPayload) {
+    return this.authService.issueExtensionToken(user.sub, user.email);
+  }
+
+  @Delete('extension-token')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeExtensionToken(@CurrentUser() user: JwtPayload) {
+    await this.authService.revokeExtensionToken(user.sub);
   }
 
   @UseGuards(JwtAuthGuard)

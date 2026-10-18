@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { WsAuthGuard } from './guards/ws-auth.guard';
 import { UserOrIpThrottlerGuard } from '../../common/throttle/rate-limit';
+import { ExtensionScopeGuard } from './guards/extension-scope.guard';
 
 @Module({
   imports: [
@@ -33,6 +34,11 @@ import { UserOrIpThrottlerGuard } from '../../common/throttle/rate-limit';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    // Extension tokens may only reach routes marked @AllowExtensionToken().
+    {
+      provide: APP_GUARD,
+      useClass: ExtensionScopeGuard,
     },
     // Registered after the JWT guard so limits can be keyed by user.
     {
