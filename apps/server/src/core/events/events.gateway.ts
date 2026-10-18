@@ -7,7 +7,7 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -69,7 +69,7 @@ interface PresenceEntry {
   pingTimeout: 10000,
 })
 export class EventsGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
 {
   @WebSocketServer()
   server!: Server;
@@ -86,6 +86,10 @@ export class EventsGateway
   afterInit() {
     // Sweep stale connections every 60s
     this.heartbeatInterval = setInterval(() => this.sweepStale(), 60_000);
+  }
+
+  onModuleDestroy() {
+    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
   }
 
   async handleConnection(client: Socket) {
