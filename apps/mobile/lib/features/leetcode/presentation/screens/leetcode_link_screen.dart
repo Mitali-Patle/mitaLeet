@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -21,17 +22,44 @@ class LeetCodeLinkScreen extends ConsumerStatefulWidget {
 class _LeetCodeLinkScreenState extends ConsumerState<LeetCodeLinkScreen> {
   final _controller = TextEditingController();
 
+  /// Set once the server has issued a verification code for [_pendingUsername].
+  String? _code;
+  String? _pendingUsername;
+
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _link() async {
+  Future<void> _requestCode() async {
     final username = _controller.text.trim();
     if (username.isEmpty) return;
 
-    final ok = await ref.read(leetcodeProvider.notifier).linkAccount(username);
+    final code = await ref.read(leetcodeProvider.notifier).requestLinkCode(username);
+    if (!mounted) return;
+
+    if (code != null) {
+      setState(() {
+        _code = code;
+        _pendingUsername = username;
+      });
+    } else {
+      final err = ref.read(leetcodeProvider).error;
+      LCToastManager.show(
+        context,
+        title: 'Link failed',
+        subtitle: err ?? 'Username not found on LeetCode',
+        accentColor: AppColors.error,
+      );
+    }
+  }
+
+  Future<void> _verify() async {
+    final username = _pendingUsername;
+    if (username == null) return;
+
+    final ok = await ref.read(leetcodeProvider.notifier).verifyLink(username);
     if (!mounted) return;
 
     if (ok) {
@@ -46,8 +74,8 @@ class _LeetCodeLinkScreenState extends ConsumerState<LeetCodeLinkScreen> {
       final err = ref.read(leetcodeProvider).error;
       LCToastManager.show(
         context,
-        title: 'Link failed',
-        subtitle: err ?? 'Username not found on LeetCode',
+        title: 'Not verified yet',
+        subtitle: err ?? 'Code not found on your LeetCode profile',
         accentColor: AppColors.error,
       );
     }
@@ -74,11 +102,19 @@ class _LeetCodeLinkScreenState extends ConsumerState<LeetCodeLinkScreen> {
                   if (mounted) Navigator.pop(context);
                 },
               )
-            : _LinkForm(
-                controller: _controller,
-                isLinking: state.isLinking,
-                onLink: _link,
-              ),
+            : _code != null
+                ? _VerifyView(
+                    username: _pendingUsername!,
+                    code: _code!,
+                    isVerifying: state.isLinking,
+                    onVerify: _verify,
+                    onChangeUsername: () => setState(() => _code = null),
+                  )
+                : _LinkForm(
+                    controller: _controller,
+                    isLinking: state.isLinking,
+                    onLink: _requestCode,
+                  ),
       ),
     );
   }
@@ -147,11 +183,110 @@ class _LinkForm extends StatelessWidget {
         SizedBox(
           width: double.infinity,
           child: LCButton(
-            label: 'LINK ACCOUNT',
+            label: 'CONTINUE',
             icon: PhosphorIconsBold.link,
             isLoading: isLinking,
             isExpanded: true,
             onPressed: onLink,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+      ],
+    );
+  }
+}
+
+/// Step 2: show the code to paste into LeetCode's "About me", then verify.
+class _VerifyView extends StatelessWidget {
+  const _VerifyView({
+    required this.username,
+    required this.code,
+    required this.isVerifying,
+    required this.onVerify,
+    required this.onChangeUsername,
+  });
+
+  final String username;
+  final String code;
+  final bool isVerifying;
+  final VoidCallback onVerify;
+  final VoidCallback onChangeUsername;
+
+  @override
+  Widget build(BuildContext context) {
+    final bodyStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: AppColors.onSurfaceMedium,
+          height: 1.6,
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: AppSpacing.xxl),
+        Text('VERIFY @$username', style: AppTypography.stat(fontSize: 18, color: AppColors.onSurface)),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'To prove this LeetCode account is yours, add the code below anywhere in your '
+          'LeetCode profile "About me" (Edit Profile → Summary), save, then tap Verify. '
+          'You can remove it once linked.',
+          style: bodyStyle,
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+
+        Text('YOUR CODE', style: AppTypography.tacticalLabel()),
+        const SizedBox(height: AppSpacing.sm),
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant,
+            borderRadius: AppRadius.cardRadius,
+            border: Border.all(color: AppColors.surfaceBorder),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: SelectableText(
+                  code,
+                  style: AppTypography.stat(fontSize: 15, color: AppColors.onSurface),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Copy code',
+                icon: const Icon(PhosphorIconsBold.copy, size: 18, color: AppColors.primary),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: code));
+                  LCToastManager.show(
+                    context,
+                    title: 'Copied',
+                    subtitle: 'Paste it into your LeetCode profile summary',
+                    accentColor: AppColors.success,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+        const Spacer(),
+
+        SizedBox(
+          width: double.infinity,
+          child: LCButton(
+            label: 'VERIFY',
+            icon: PhosphorIconsBold.sealCheck,
+            isLoading: isVerifying,
+            isExpanded: true,
+            onPressed: onVerify,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton(
+            onPressed: onChangeUsername,
+            child: Text(
+              'USE A DIFFERENT USERNAME',
+              style: AppTypography.tacticalLabel(fontSize: 10, color: AppColors.onSurfaceMedium),
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.xxl),

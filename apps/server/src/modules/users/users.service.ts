@@ -57,16 +57,6 @@ export class UsersService {
       }
     }
 
-    // Check LeetCode username uniqueness
-    if (dto.leetcodeUsername) {
-      const existing = await this.prisma.userProfile.findUnique({
-        where: { leetcodeUsername: dto.leetcodeUsername },
-      });
-      if (existing && existing.userId !== userId) {
-        throw new ConflictException('LeetCode username already linked');
-      }
-    }
-
     // Update user fields
     if (dto.displayName || dto.avatarUrl) {
       await this.prisma.user.update({
@@ -84,9 +74,6 @@ export class UsersService {
       data: {
         ...(dto.username && { username: dto.username }),
         ...(dto.bio !== undefined && { bio: dto.bio }),
-        ...(dto.leetcodeUsername && {
-          leetcodeUsername: dto.leetcodeUsername,
-        }),
       },
       include: {
         user: {

@@ -5,6 +5,9 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
+import { createHmac } from 'crypto';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { LeetCodeClient } from './leetcode.client';
 import { SyncService } from './sync.service';
@@ -17,40 +20,61 @@ export class LeetCodeService {
     private prisma: PrismaService,
     private leetcode: LeetCodeClient,
     private syncService: SyncService,
+    private config: ConfigService,
   ) {}
 
-  /** Link a LeetCode username to the user's profile. */
-  async linkAccount(userId: string, leetcodeUsername: string) {
-    const trimmed = leetcodeUsername.trim().toLowerCase();
-    if (!trimmed || trimmed.length < 1 || trimmed.length > 50) {
-      throw new BadRequestException('Invalid LeetCode username');
+  /**
+   * Step 1 of linking: check the username and hand back a code the user must
+   * put in their LeetCode profile "About me". Nothing is linked yet.
+   */
+  async startLink(userId: string, leetcodeUsername: string) {
+    const username = this.normalize(leetcodeUsername);
+    await this.assertNotLinkedElsewhere(userId, username);
+
+    const exists = await this.leetcode.validateUsername(username);
+    if (!exists) throw new BadRequestException('LeetCode username not found');
+
+    return {
+      leetcodeUsername: username,
+      verificationCode: this.verificationCode(userId, username),
+      instructions:
+        'Add this code anywhere in your LeetCode profile "About me" (Edit Profile > Summary), ' +
+        'save, then tap Verify. You can remove it afterwards.',
+    };
+  }
+
+  /**
+   * Step 2: confirm the code is on the LeetCode profile, then link and sync.
+   * This proves the caller controls the account whose solves they will earn XP for.
+   */
+  async verifyLink(userId: string, leetcodeUsername: string) {
+    const username = this.normalize(leetcodeUsername);
+    await this.assertNotLinkedElsewhere(userId, username);
+
+    const aboutMe = await this.leetcode.fetchProfileAboutMe(username);
+    if (aboutMe === null) throw new BadRequestException('LeetCode username not found');
+    if (!aboutMe.includes(this.verificationCode(userId, username))) {
+      throw new BadRequestException(
+        'Verification code not found in your LeetCode profile "About me" yet. Save it there and try again.',
+      );
     }
 
-    // Check if already linked by someone else
-    const existing = await this.prisma.userProfile.findFirst({
-      where: { leetcodeUsername: trimmed, userId: { not: userId } },
-    });
-    if (existing) {
-      throw new ConflictException('This LeetCode account is linked to another user');
-    }
+    const profile = await this.prisma.userProfile
+      .update({
+        where: { userId },
+        data: {
+          leetcodeUsername: username,
+          leetcodeVerified: true,
+          leetcodeLinkedAt: new Date(),
+        },
+      })
+      .catch((err) => {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+          throw new ConflictException('This LeetCode account is linked to another user');
+        }
+        throw err;
+      });
 
-    // Validate username on LeetCode
-    const valid = await this.leetcode.validateUsername(trimmed);
-    if (!valid) {
-      throw new BadRequestException('LeetCode username not found');
-    }
-
-    // Update profile
-    const profile = await this.prisma.userProfile.update({
-      where: { userId },
-      data: {
-        leetcodeUsername: trimmed,
-        leetcodeVerified: true,
-        leetcodeLinkedAt: new Date(),
-      },
-    });
-
-    // Trigger initial sync
     await this.syncService.triggerSync(userId, 'full_refresh');
 
     return {
@@ -58,6 +82,26 @@ export class LeetCodeService {
       leetcodeVerified: profile.leetcodeVerified,
       leetcodeLinkedAt: profile.leetcodeLinkedAt,
     };
+  }
+
+  /** Deterministic per (user, LeetCode account); no storage needed. */
+  private verificationCode(userId: string, username: string): string {
+    const digest = createHmac('sha256', this.config.getOrThrow<string>('JWT_SECRET'))
+      .update(`leetcode-link:${userId}:${username}`)
+      .digest('hex');
+    return `mitaleet-${digest.slice(0, 10)}`;
+  }
+
+  private normalize(leetcodeUsername: string): string {
+    return leetcodeUsername.trim().toLowerCase();
+  }
+
+  private async assertNotLinkedElsewhere(userId: string, username: string) {
+    const existing = await this.prisma.userProfile.findFirst({
+      where: { leetcodeUsername: username, userId: { not: userId } },
+      select: { id: true },
+    });
+    if (existing) throw new ConflictException('This LeetCode account is linked to another user');
   }
 
   /** Unlink LeetCode account. */

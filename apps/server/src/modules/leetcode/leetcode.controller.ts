@@ -13,6 +13,7 @@ import {
 
 class LinkAccountDto {
   @IsNotEmpty() @IsString() @MaxLength(50)
+  @Matches(/^[A-Za-z0-9_-]+$/, { message: 'Invalid LeetCode username format' })
   leetcodeUsername!: string;
 }
 
@@ -46,9 +47,16 @@ export class LeetCodeController {
     return this.leetcodeService.getLinkStatus(user.sub);
   }
 
+  /** Step 1: returns a code to put in the LeetCode profile "About me". */
   @Post('link')
   link(@CurrentUser() user: JwtPayload, @Body() dto: LinkAccountDto) {
-    return this.leetcodeService.linkAccount(user.sub, dto.leetcodeUsername);
+    return this.leetcodeService.startLink(user.sub, dto.leetcodeUsername);
+  }
+
+  /** Step 2: checks the code on LeetCode, then links the account. */
+  @Post('link/verify')
+  verifyLink(@CurrentUser() user: JwtPayload, @Body() dto: LinkAccountDto) {
+    return this.leetcodeService.verifyLink(user.sub, dto.leetcodeUsername);
   }
 
   @Delete('link')

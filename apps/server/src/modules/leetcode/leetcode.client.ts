@@ -56,6 +56,24 @@ export class LeetCodeClient {
     };
   }
 
+  /**
+   * Read the profile "About me" text, used to prove account ownership.
+   * Returns null when the user does not exist (or LeetCode is unreachable).
+   */
+  async fetchProfileAboutMe(username: string): Promise<string | null> {
+    const query = `
+      query userAboutMe($username: String!) {
+        matchedUser(username: $username) {
+          profile { aboutMe }
+        }
+      }
+    `;
+    const data = await this.gql(query, { username });
+    const user = data?.matchedUser;
+    if (!user) return null;
+    return user.profile?.aboutMe ?? '';
+  }
+
   /** Fetch recent accepted submissions. */
   async fetchRecentSubmissions(
     username: string,

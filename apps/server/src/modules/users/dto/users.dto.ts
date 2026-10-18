@@ -17,13 +17,6 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^[a-zA-Z0-9_-]+$/, {
-    message: 'Invalid LeetCode username format',
-  })
-  leetcodeUsername?: string;
-
-  @IsOptional()
-  @IsString()
   displayName?: string;
 
   @IsOptional()

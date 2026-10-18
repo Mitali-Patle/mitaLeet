@@ -266,10 +266,26 @@ class LeetCodeNotifier extends StateNotifier<LeetCodeState> {
     } catch (_) {}
   }
 
-  Future<bool> linkAccount(String username) async {
+  /// Step 1 of linking: returns the code the user must put in their
+  /// LeetCode profile "About me", or null on error (see [LeetCodeState.error]).
+  Future<String?> requestLinkCode(String username) async {
     state = state.copyWith(isLinking: true, error: null);
     try {
-      await _api.post(ApiEndpoints.lcLink,
+      final res = await _api.post(ApiEndpoints.lcLink,
+          data: {'leetcodeUsername': username});
+      state = state.copyWith(isLinking: false);
+      return res.data['data']['verificationCode'] as String?;
+    } catch (e) {
+      state = state.copyWith(isLinking: false, error: _extractError(e));
+      return null;
+    }
+  }
+
+  /// Step 2: the server checks the code on LeetCode, then links the account.
+  Future<bool> verifyLink(String username) async {
+    state = state.copyWith(isLinking: true, error: null);
+    try {
+      await _api.post(ApiEndpoints.lcLinkVerify,
           data: {'leetcodeUsername': username});
       await loadLinkStatus();
       state = state.copyWith(isLinking: false);

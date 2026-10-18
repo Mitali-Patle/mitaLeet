@@ -47,6 +47,7 @@ abstract final class ApiEndpoints {
   // ── LeetCode ─────────────────────────────────────────────────────
   static const String lcStatus = '/leetcode/status';
   static const String lcLink = '/leetcode/link';
+  static const String lcLinkVerify = '/leetcode/link/verify';
   static const String lcSync = '/leetcode/sync';
   static const String lcSyncHistory = '/leetcode/sync/history';
   static const String lcSolves = '/leetcode/solves';
