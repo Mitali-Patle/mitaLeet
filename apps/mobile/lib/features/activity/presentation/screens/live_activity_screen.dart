@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -57,11 +57,11 @@ class _LiveActivityScreenState extends ConsumerState<LiveActivityScreen> {
             ),
             child: Row(
               children: [
-                _FilterChip(label: 'ALL', isSelected: true),
+                _FilterChip(label: 'All', isSelected: true),
                 const SizedBox(width: AppSpacing.sm),
-                _FilterChip(label: 'SOLVES', isSelected: false),
+                _FilterChip(label: 'Solves', isSelected: false),
                 const SizedBox(width: AppSpacing.sm),
-                _FilterChip(label: 'STREAKS', isSelected: false),
+                _FilterChip(label: 'Streaks', isSelected: false),
                 const Spacer(),
                 _LiveIndicator(),
               ],
@@ -307,7 +307,7 @@ class _LiveIndicatorState extends State<_LiveIndicator>
         ),
         const SizedBox(width: 4),
         Text(
-          'LIVE',
+          'Live',
           style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.success),
         ),
       ],
@@ -352,7 +352,7 @@ class _EmptyFeed extends StatelessWidget {
         children: [
           Icon(PhosphorIconsBold.pulse, size: 48, color: AppColors.onSurfaceDim),
           const SizedBox(height: AppSpacing.lg),
-          Text('NO ACTIVITY YET', style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim)),
+          Text('No activity yet', style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim)),
         ],
       ),
     );

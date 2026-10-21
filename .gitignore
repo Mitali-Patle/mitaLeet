@@ -65,3 +65,6 @@ apps/mobile/pubspec.lock
 
 # Local Netlify folder
 .netlify
+
+# Editor lock files (LibreOffice etc.)
+.~lock.*#

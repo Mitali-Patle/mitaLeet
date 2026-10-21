@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_animations.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
 import '../../../../shared/widgets/lc_status_badge.dart';
 import '../../../../shared/widgets/lc_shimmer.dart';
 import '../../../friends/providers/friends_provider.dart';
-import 'friend_requests_screen.dart';
-import 'friend_search_screen.dart';
 
 /// Friend list with realtime presence indicators.
 class FriendListScreen extends ConsumerStatefulWidget {
@@ -42,10 +40,8 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
             children: [
               IconButton(
                 icon: const Icon(PhosphorIconsBold.bellRinging, size: 20),
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FriendRequestsScreen()),
-                ),
+                tooltip: 'Friend requests',
+                onPressed: () => context.push('/profile/friends/requests'),
                 color: AppColors.onSurfaceMedium,
               ),
               if (state.incoming.isNotEmpty)
@@ -81,10 +77,8 @@ class _FriendListScreenState extends ConsumerState<FriendListScreen> {
           ),
           IconButton(
             icon: const Icon(PhosphorIconsBold.magnifyingGlass, size: 20),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const FriendSearchScreen()),
-            ),
+            tooltip: 'Find friends',
+            onPressed: () => context.push('/profile/friends/search'),
             color: AppColors.primary,
           ),
         ],
@@ -237,7 +231,7 @@ class _EmptyState extends StatelessWidget {
           Icon(PhosphorIconsBold.usersThree, size: 48, color: AppColors.onSurfaceDim),
           const SizedBox(height: AppSpacing.lg),
           Text(
-            'NO FRIENDS YET',
+            'No friends yet',
             style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
           ),
           const SizedBox(height: AppSpacing.sm),

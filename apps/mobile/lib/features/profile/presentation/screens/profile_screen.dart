@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../gamification/presentation/widgets/lc_rank_badge.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_endpoints.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
 import '../../../../shared/widgets/lc_stat_container.dart';
 import '../../../../shared/widgets/lc_streak_indicator.dart';
@@ -27,6 +30,38 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  Future<void> _confirmDeleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceVariant,
+        title: const Text('Delete account?'),
+        content: const Text(
+          'This permanently deletes your profile, solves, streaks, XP, friends and squad '
+          'memberships. Squads you own pass to another member. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await ref.read(authStateProvider.notifier).deleteAccount();
+    if (!ok && mounted) {
+      LCToastManager.show(
+        context,
+        title: 'Could not delete account',
+        subtitle: 'Check your connection and try again',
+        accentColor: AppColors.error,
+      );
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -168,7 +203,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 width: 0.5),
                           ),
                           child: Text(
-                            progression.rank,
+                            rankDisplayName(progression.rank),
                             style: AppTypography.tacticalLabel(
                               color: AppColors.primary,
                               fontSize: 8,
@@ -177,7 +212,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         const SizedBox(width: AppSpacing.md),
                         Text(
-                          'LVL ${progression.level}',
+                          'Level ${progression.level}',
                           style: AppTypography.stat(
                               fontSize: 14, color: AppColors.onSurface),
                         ),
@@ -194,8 +229,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 6),
                     Text(
                       progression.nextRank != null
-                          ? '${progression.currentLevelXP} / ${progression.nextLevelXP} XP → ${progression.nextRank}'
-                          : 'MAX RANK ACHIEVED',
+                          ? '${progression.currentLevelXP} / ${progression.nextLevelXP} XP → ${rankDisplayName(progression.nextRank!)}'
+                          : 'Max rank achieved',
                       style: AppTypography.tacticalLabel(
                           fontSize: 8, color: AppColors.onSurfaceDim),
                     ),
@@ -212,7 +247,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Expanded(
                         child: LCStatContainer(
-                            label: 'SOLVED',
+                            label: 'Solved',
                             value: '$total',
                             valueColor: AppColors.success)),
                     const SizedBox(width: AppSpacing.itemGap),
@@ -228,7 +263,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   children: [
                     Expanded(
                         child: LCStatContainer(
-                            label: 'STREAK',
+                            label: 'Streak',
                             value: '${stats.streak.currentStreak}d')),
                     const SizedBox(width: AppSpacing.itemGap),
                     Expanded(
@@ -247,21 +282,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('DIFFICULTY BREAKDOWN', style: AppTypography.tacticalLabel()),
+                    Text('Difficulty breakdown', style: AppTypography.tacticalLabel()),
                     const SizedBox(height: AppSpacing.lg),
-                    _DifficultyRow(label: 'EASY', count: easy, total: total, color: AppColors.easy),
+                    _DifficultyRow(label: 'Easy', count: easy, total: total, color: AppColors.easy),
                     const SizedBox(height: AppSpacing.md),
                     _DifficultyRow(
-                        label: 'MEDIUM', count: medium, total: total, color: AppColors.medium),
+                        label: 'Medium', count: medium, total: total, color: AppColors.medium),
                     const SizedBox(height: AppSpacing.md),
-                    _DifficultyRow(label: 'HARD', count: hard, total: total, color: AppColors.hard),
+                    _DifficultyRow(label: 'Hard', count: hard, total: total, color: AppColors.hard),
                   ],
                 ),
               ),
               const SizedBox(height: AppSpacing.sectionGap),
 
+              // ── Social and progress ─────────────────────────
+              _NavRow(
+                icon: PhosphorIconsBold.users,
+                label: 'Friends',
+                onTap: () => context.push('/profile/friends'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              _NavRow(
+                icon: PhosphorIconsBold.chartLineUp,
+                label: 'Progression and achievements',
+                onTap: () => context.push('/profile/progression'),
+              ),
+              const SizedBox(height: AppSpacing.sectionGap),
+
               // ── Extension token ─────────────────────────────
-              _ExtensionTokenCard(storage: ref.read(secureStorageProvider)),
+              const _ExtensionTokenCard(),
               const SizedBox(height: AppSpacing.sectionGap),
 
               // ── Sign out ────────────────────────────────────
@@ -274,8 +323,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     foregroundColor: AppColors.error,
                   ),
                   child: Text(
-                    'SIGN OUT',
+                    'Sign out',
                     style: AppTypography.tacticalLabel(color: AppColors.error),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+
+              // ── Delete account (required by the app stores) ─────────
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: _confirmDeleteAccount,
+                  child: Text(
+                    'Delete account',
+                    style: AppTypography.tacticalLabel(fontSize: 9, color: AppColors.onSurfaceDim),
                   ),
                 ),
               ),
@@ -290,30 +352,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
 // ── Extension Token Card ─────────────────────────────────────────────────────
 
-class _ExtensionTokenCard extends StatefulWidget {
-  const _ExtensionTokenCard({required this.storage});
-  final SecureStorage storage;
+/// Generates a dedicated, revocable extension token (valid 90 days, usable
+/// only for reporting solves) instead of exposing the app's own session.
+class _ExtensionTokenCard extends ConsumerStatefulWidget {
+  const _ExtensionTokenCard();
 
   @override
-  State<_ExtensionTokenCard> createState() => _ExtensionTokenCardState();
+  ConsumerState<_ExtensionTokenCard> createState() => _ExtensionTokenCardState();
 }
 
-class _ExtensionTokenCardState extends State<_ExtensionTokenCard> {
+class _ExtensionTokenCardState extends ConsumerState<_ExtensionTokenCard> {
   bool _copied = false;
+  bool _busy = false;
 
   Future<void> _copyToken() async {
-    final token = await widget.storage.getAccessToken();
-    if (token == null || !mounted) return;
-    await Clipboard.setData(ClipboardData(text: token));
-    setState(() => _copied = true);
-    if (mounted) {
+    if (_busy) return;
+    setState(() => _busy = true);
+    String? token;
+    try {
+      final res = await ref.read(apiClientProvider).post(ApiEndpoints.authExtensionToken);
+      token = res.data['data']['token'] as String?;
+    } catch (_) {
+      token = null;
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (token == null) {
       LCToastManager.show(
         context,
-        title: 'Token copied',
-        subtitle: 'Paste it into the mitaLeet Chrome extension',
-        accentColor: AppColors.primary,
+        title: 'Could not create token',
+        subtitle: 'Check your connection and try again',
+        accentColor: AppColors.error,
       );
+      return;
     }
+    await Clipboard.setData(ClipboardData(text: token));
+    if (!mounted) return;
+    setState(() => _copied = true);
+    LCToastManager.show(
+      context,
+      title: 'New extension token copied',
+      subtitle: 'Paste it into the mitaLeet Chrome extension. Any older token stops working.',
+      accentColor: AppColors.primary,
+    );
     await Future.delayed(const Duration(seconds: 2));
     if (mounted) setState(() => _copied = false);
   }
@@ -330,13 +411,14 @@ class _ExtensionTokenCardState extends State<_ExtensionTokenCard> {
               const Icon(PhosphorIconsBold.puzzlePiece,
                   size: 12, color: AppColors.primary),
               const SizedBox(width: AppSpacing.sm),
-              Text('EXTENSION TOKEN',
+              Text('Extension token',
                   style: AppTypography.tacticalLabel(color: AppColors.primary)),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Copy your API token and paste it into the mitaLeet Chrome extension to enable real-time solve tracking.',
+            'Tap to create a token for the mitaLeet Chrome extension (valid 90 days, can only report solves). '
+            'Creating a new one disconnects the old one.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.onSurfaceMedium,
                   height: 1.5,
@@ -357,7 +439,7 @@ class _ExtensionTokenCardState extends State<_ExtensionTokenCard> {
                 children: [
                   Expanded(
                     child: Text(
-                      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX...',
+                      _busy ? 'GENERATING…' : 'Tap to generate and copy',
                       style: AppTypography.tacticalLabel(
                         fontSize: 9,
                         color: AppColors.onSurfaceDim,
@@ -426,6 +508,38 @@ class _DifficultyRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A tappable row that opens another page.
+class _NavRow extends StatelessWidget {
+  const _NavRow({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceVariant,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: AppColors.onSurfaceMedium),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium)),
+              const Icon(PhosphorIconsBold.caretRight, size: 14, color: AppColors.onSurfaceDim),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

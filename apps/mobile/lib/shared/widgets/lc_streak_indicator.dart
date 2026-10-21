@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../core/theme/phosphor_icons.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_radius.dart';
@@ -130,7 +130,7 @@ class _LCStreakIndicatorState extends State<LCStreakIndicator>
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
-                'STREAK',
+                'Streak',
                 style: AppTypography.tacticalLabel(
                   color: AppColors.onSurfaceDim,
                 ),
@@ -146,7 +146,7 @@ class _LCStreakIndicatorState extends State<LCStreakIndicator>
             ),
           ),
           Text(
-            'DAYS',
+            'Days',
             style: AppTypography.tacticalLabel(fontSize: 9),
           ),
           if (widget.longestStreak != null) ...[

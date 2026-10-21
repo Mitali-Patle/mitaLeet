@@ -123,7 +123,7 @@ class LCLeaderboardCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '$solveCount SOLVED',
+                        '$solveCount solved',
                         style: AppTypography.tacticalLabel(
                           fontSize: 9,
                           color: AppColors.onSurfaceDim,

@@ -57,16 +57,6 @@ export class UsersService {
       }
     }
 
-    // Check LeetCode username uniqueness
-    if (dto.leetcodeUsername) {
-      const existing = await this.prisma.userProfile.findUnique({
-        where: { leetcodeUsername: dto.leetcodeUsername },
-      });
-      if (existing && existing.userId !== userId) {
-        throw new ConflictException('LeetCode username already linked');
-      }
-    }
-
     // Update user fields
     if (dto.displayName || dto.avatarUrl) {
       await this.prisma.user.update({
@@ -84,9 +74,7 @@ export class UsersService {
       data: {
         ...(dto.username && { username: dto.username }),
         ...(dto.bio !== undefined && { bio: dto.bio }),
-        ...(dto.leetcodeUsername && {
-          leetcodeUsername: dto.leetcodeUsername,
-        }),
+        ...(dto.timezone && { timezone: dto.timezone }),
       },
       include: {
         user: {
@@ -117,11 +105,37 @@ export class UsersService {
     });
   }
 
-  /** Remove a device token. */
-  async unregisterDevice(token: string) {
+  /** Remove one of the caller's own device tokens. */
+  async unregisterDevice(userId: string, token: string) {
     await this.prisma.deviceToken.deleteMany({
-      where: { token },
+      where: { token, userId },
     });
+  }
+
+  /**
+   * Delete the account and everything that belongs to it (profile, sessions,
+   * devices, solves, streak, activity, notifications, friendships, requests,
+   * memberships, races created) via the schema's ON DELETE CASCADE.
+   * Squads the user owns go to the longest-standing admin (else member), or
+   * are deleted when nobody else is left.
+   */
+  async deleteAccount(userId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const owned = await tx.groupMember.findMany({ where: { userId, role: 'OWNER' }, select: { groupId: true } });
+      for (const { groupId } of owned) {
+        const successor = await tx.groupMember.findFirst({
+          where: { groupId, userId: { not: userId } },
+          orderBy: [{ role: 'asc' }, { joinedAt: 'asc' }], // enum order: OWNER, ADMIN, MEMBER
+        });
+        if (successor) {
+          await tx.groupMember.update({ where: { id: successor.id }, data: { role: 'OWNER' } });
+        } else {
+          await tx.group.delete({ where: { id: groupId } });
+        }
+      }
+      await tx.user.delete({ where: { id: userId } });
+    });
+    this.logger.log(`Account deleted: ${userId}`);
   }
 
   /** Update user online status. */

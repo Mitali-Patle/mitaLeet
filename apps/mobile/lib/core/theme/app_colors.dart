@@ -10,7 +10,7 @@ abstract final class AppColors {
   static const Color surfaceVariant = Color(0xFF1A1A1F);
   static const Color surfaceContainer = Color(0xFF242429);
   static const Color surfaceContainerHigh = Color(0xFF2E2E34);
-  static const Color surfaceBorder = Color(0xFF35353D);
+  static const Color surfaceBorder = Color(0xFF2A2A31);
 
   // ── Brand ──────────────────────────────────────────────────────────
   static const Color primary = Color(0xFFC4642A);
@@ -67,12 +67,11 @@ abstract final class AppColors {
     ],
   );
 
+  // Cards are flat; kept as a gradient type for existing callers.
   static const LinearGradient cardGradient = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
     colors: [
-      Color(0xFF242429),
-      Color(0xFF1A1A1F),
+      Color(0xFF17171B),
+      Color(0xFF17171B),
     ],
   );
 }

@@ -1,10 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+
+const REQUEST_TIMEOUT_MS = 10_000;
 
 /** Unofficial LeetCode GraphQL API client. */
 @Injectable()
 export class LeetCodeClient {
   private readonly logger = new Logger(LeetCodeClient.name);
-  private readonly BASE = 'https://leetcode.com/graphql';
+  private readonly BASE: string;
+
+  constructor(config: ConfigService) {
+    this.BASE = config.get<string>('LEETCODE_GRAPHQL_URL', 'https://leetcode.com/graphql');
+  }
 
   /** Validate that a LeetCode username exists. */
   async validateUsername(username: string): Promise<boolean> {
@@ -54,6 +61,24 @@ export class LeetCodeClient {
       mediumSolved: findCount('Medium'),
       hardSolved: findCount('Hard'),
     };
+  }
+
+  /**
+   * Read the profile "About me" text, used to prove account ownership.
+   * Returns null when the user does not exist (or LeetCode is unreachable).
+   */
+  async fetchProfileAboutMe(username: string): Promise<string | null> {
+    const query = `
+      query userAboutMe($username: String!) {
+        matchedUser(username: $username) {
+          profile { aboutMe }
+        }
+      }
+    `;
+    const data = await this.gql(query, { username });
+    const user = data?.matchedUser;
+    if (!user) return null;
+    return user.profile?.aboutMe ?? '';
   }
 
   /** Fetch recent accepted submissions. */
@@ -157,6 +182,8 @@ export class LeetCodeClient {
           'User-Agent': 'mitaLeet/1.0',
         },
         body: JSON.stringify({ query, variables }),
+        // A hung request would otherwise hold a sync slot indefinitely.
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
 
       if (!res.ok) {

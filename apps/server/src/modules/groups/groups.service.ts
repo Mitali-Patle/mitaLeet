@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
 import { CreateGroupDto, JoinGroupDto } from './dto/groups.dto';
+import { assertGroupMember } from '../../common/authz/group-membership';
 
 @Injectable()
 export class GroupsService {
@@ -63,8 +64,9 @@ export class GroupsService {
     return this.getById(group.id, userId);
   }
 
-  /** Get group details with members and online status. */
-  async getById(groupId: string, requesterId?: string) {
+  /** Get group details with members and online status. Members only. */
+  async getById(groupId: string, requesterId: string) {
+    await assertGroupMember(this.prisma, requesterId, groupId);
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
       include: this.groupInclude,
@@ -185,8 +187,9 @@ export class GroupsService {
     });
   }
 
-  /** Get leaderboard for a group. */
-  async getLeaderboard(groupId: string) {
+  /** Get leaderboard for a group. Members only. */
+  async getLeaderboard(groupId: string, requesterId: string) {
+    await assertGroupMember(this.prisma, requesterId, groupId);
     const members = await this.prisma.groupMember.findMany({
       where: { groupId },
       include: {
@@ -215,8 +218,9 @@ export class GroupsService {
       .map((e, i) => ({ ...e, rank: i + 1 }));
   }
 
-  /** Get group activity feed. */
-  async getActivity(groupId: string, limit = 30) {
+  /** Get group activity feed. Members only. */
+  async getActivity(groupId: string, requesterId: string, limit = 30) {
+    await assertGroupMember(this.prisma, requesterId, groupId);
     const members = await this.prisma.groupMember.findMany({
       where: { groupId },
       select: { userId: true },

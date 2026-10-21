@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_typography.dart';
+import '../../../../shared/widgets/lc_logo.dart';
 import '../../../../core/theme/app_animations.dart';
 import '../../../auth/providers/auth_provider.dart';
 
 /// Splash screen with animated logo and auth check.
 class SplashScreen extends ConsumerStatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.from});
+
+  /// The page that was requested before the saved session was restored
+  /// (e.g. after a browser reload). Only in-app paths are honoured.
+  final String? from;
 
   @override
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
@@ -57,35 +61,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _startSequence() async {
-    // Safety timer — if anything hangs, force navigate to login
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        debugPrint('[Splash] Safety timer fired — forcing /login');
-        context.go('/login');
-      }
+    _logoController.forward();
+    Future.delayed(const Duration(milliseconds: 250), () {
+      if (mounted) _textController.forward();
     });
 
-    await Future.delayed(const Duration(milliseconds: 200));
-    _logoController.forward();
-    await Future.delayed(const Duration(milliseconds: 400));
-    _textController.forward();
-
-    // Check auth and navigate
-    await Future.delayed(const Duration(milliseconds: 1200));
+    // Restore the saved session while the logo animates; checkAuth has its
+    // own timeout and never throws, so there is no need for a safety timer
+    // (the old 4-second one sent signed-in users to /login on slow networks).
+    await Future.wait([
+      ref.read(authStateProvider.notifier).checkAuth(),
+      Future.delayed(const Duration(milliseconds: 500)),
+    ]);
     if (!mounted) return;
 
-    bool isAuth = false;
-    try {
-      await ref.read(authStateProvider.notifier).checkAuth();
-      if (mounted) {
-        isAuth = ref.read(authStateProvider).isAuthenticated;
-      }
-    } catch (e) {
-      debugPrint('[Splash] checkAuth error: $e');
-    }
-
-    if (!mounted) return;
-    context.go(isAuth ? '/' : '/login');
+    final from = widget.from;
+    final target = from != null && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/splash')
+        ? from
+        : '/';
+    // The router's redirect sends signed-out users to /login from here.
+    context.go(target);
   }
 
   @override
@@ -111,33 +106,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   opacity: _logoOpacity.value,
                   child: Transform.scale(
                     scale: _logoScale.value,
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.2),
-                            blurRadius: 24,
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(
-                          'LC',
-                          style: AppTypography.stat(
-                            fontSize: 24,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
+                    child: const LCLogo(size: 52, showWordmark: false),
                   ),
                 );
               },
@@ -152,20 +121,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Column(
                   children: [
                     Text(
-                      'MITALEET',
-                      style: AppTypography.stat(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'COMPETITIVE CODING OS',
-                      style: AppTypography.tacticalLabel(
-                        fontSize: 9,
-                        color: AppColors.onSurfaceDim,
-                      ),
+                      'mitaLeet',
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
                   ],
                 ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/app_shadows.dart';
 
@@ -74,9 +73,9 @@ class LCRankDisplay extends StatelessWidget {
   }
 
   String get _rankLabel {
-    if (rank == 1) return 'FIRST';
-    if (rank == 2) return 'SECOND';
-    if (rank == 3) return 'THIRD';
-    return 'RANK';
+    if (rank == 1) return 'First';
+    if (rank == 2) return 'Second';
+    if (rank == 3) return 'Third';
+    return 'Rank';
   }
 }

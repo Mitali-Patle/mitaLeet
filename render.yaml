@@ -1,14 +1,40 @@
+# Render Blueprint for the API. Secrets use `sync: false`: set them in the
+# Render dashboard (Environment), never in this file. See DEPLOYMENT_GUIDE.md.
 services:
   - type: web
     name: mitaleet-server
     env: node
     rootDir: apps/server
-    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
-    preDeployCommand: npx prisma migrate deploy
+    buildCommand: npm ci --include=dev && npm run build
+    # Migrations run once at start (prisma migrate deploy takes an advisory
+    # lock, so this is safe even with several instances). Works on every plan;
+    # preDeployCommand is not available on the free instance type.
     startCommand: npm run start:prod
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
       - key: CORS_ORIGINS
-        value: https://mitali.netlify.app
+        value: https://mitaleet.netlify.app
+      - key: JWT_ACCESS_EXPIRATION
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 30d
+      # onrender.com traffic passes Cloudflare, which sets CF-Connecting-IP to
+      # the real client IP (clients cannot forge it). Used for rate limits.
+      - key: CLIENT_IP_HEADER
+        value: cf-connecting-ip
+      - key: TRUST_PROXY_HOPS
+        value: "2"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false

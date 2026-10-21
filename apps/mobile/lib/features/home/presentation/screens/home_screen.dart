@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../gamification/presentation/widgets/lc_rank_badge.dart';
 import 'package:go_router/go_router.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -58,10 +59,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: LCAppBar(
         title: 'mitaLeet',
         actions: [
-          // Squads shortcut
+          IconButton(
+            icon: const Icon(PhosphorIconsBold.flagCheckered, size: 20),
+            onPressed: () => context.push('/races'),
+            color: AppColors.onSurfaceMedium,
+            tooltip: 'Races',
+          ),
           IconButton(
             icon: const Icon(PhosphorIconsBold.usersThree, size: 20),
-            onPressed: () => context.push('/squad'),
+            onPressed: () => context.push('/squads'),
             color: AppColors.onSurfaceMedium,
             tooltip: 'My Squads',
           ),
@@ -117,7 +123,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Expanded(
                       child: LCStatContainer(
-                        label: 'SOLVED',
+                        label: 'Solved',
                         value: '${stats.totalSolves}',
                         icon: PhosphorIconsBold.checkCircle,
                         valueColor: AppColors.success,
@@ -141,8 +147,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   children: [
                     Expanded(
                       child: LCStatContainer(
-                        label: 'RANK',
-                        value: 'LVL ${progression.level}',
+                        label: 'Rank',
+                        value: 'Level ${progression.level}',
                         icon: PhosphorIconsBold.trophy,
                         valueColor: const Color(0xFFB87333),
                       ),
@@ -165,7 +171,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('DAILY GOAL', style: AppTypography.tacticalLabel()),
+                    Text('Daily goal', style: AppTypography.tacticalLabel()),
                     const SizedBox(height: AppSpacing.md),
                     LCProgressBar(
                       progress: dailyProgress,
@@ -177,7 +183,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '$todayCount / $dailyGoal PROBLEMS',
+                          '$todayCount / $dailyGoal problems',
                           style: AppTypography.tacticalLabel(
                             fontSize: 9,
                             color: AppColors.onSurfaceMedium,
@@ -214,7 +220,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ),
                       child: Text(
-                        progression.rank,
+                        rankDisplayName(progression.rank),
                         style: AppTypography.tacticalLabel(
                           color: AppColors.primary,
                           fontSize: 9,
@@ -234,8 +240,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(height: 4),
                           Text(
                             progression.nextRank != null
-                                ? '${progression.currentLevelXP} / ${progression.nextLevelXP} XP → ${progression.nextRank}'
-                                : 'MAX RANK',
+                                ? '${progression.currentLevelXP} / ${progression.nextLevelXP} XP → ${rankDisplayName(progression.nextRank!)}'
+                                : 'Max rank',
                             style: AppTypography.tacticalLabel(
                               fontSize: 8,
                               color: AppColors.onSurfaceDim,
@@ -252,7 +258,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // ── Recent activity ─────────────────────────────
               Row(
                 children: [
-                  Text('RECENT ACTIVITY', style: AppTypography.tacticalLabel()),
+                  Text('Recent activity', style: AppTypography.tacticalLabel()),
                   const Spacer(),
                   // Live dot
                   Container(
@@ -271,7 +277,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'LIVE',
+                    'Live',
                     style: AppTypography.tacticalLabel(
                       fontSize: 8,
                       color: AppColors.success,
@@ -286,7 +292,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 LCCard(
                   child: Center(
                     child: Text(
-                      'NO ACTIVITY YET — START SOLVING',
+                      'No activity yet — start solving',
                       style: AppTypography.tacticalLabel(
                         color: AppColors.onSurfaceDim,
                         fontSize: 9,

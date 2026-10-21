@@ -1,16 +1,50 @@
 import {
-  Controller, Get, Post, Delete, Body, Query, Param,
+  Controller, Get, Post, Delete, Body, Query, Param, ParseUUIDPipe,
 } from '@nestjs/common';
 import { LeetCodeService } from './leetcode.service';
 import { SolvesService } from './solves.service';
 import { StreakService } from './streak.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { PROBLEM_SLUG } from '../../common/validation/slug';
+import {
+  IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, Min,
+} from 'class-validator';
+import { RateLimit } from '../../common/throttle/rate-limit';
+import { HeatmapQueryDto, LimitQueryDto } from '../../common/dto/query.dto';
+import { AllowExtensionToken } from '../../common/decorators/allow-extension-token.decorator';
 
 class LinkAccountDto {
   @IsNotEmpty() @IsString() @MaxLength(50)
+  @Matches(/^[A-Za-z0-9_-]+$/, { message: 'Invalid LeetCode username format' })
   leetcodeUsername!: string;
+}
+
+class ExtensionSolveDto {
+  @IsString() @MaxLength(120) @Matches(PROBLEM_SLUG)
+  problemSlug!: string;
+
+  // Sent by existing extension builds; accepted but not trusted.
+  @IsOptional() @IsString() @MaxLength(40)
+  language?: string;
+
+  @IsOptional() @IsDateString()
+  solvedAt?: string;
+
+  @IsOptional() @IsInt() @Min(0)
+  durationMs?: number;
+}
+
+class StartSessionDto {
+  @IsString() @MaxLength(120) @Matches(PROBLEM_SLUG)
+  problemSlug!: string;
+
+  // Sent by existing extension builds; not used.
+  @IsOptional() @IsString() @MaxLength(40)
+  language?: string;
+
+  @IsOptional() @IsDateString()
+  startedAt?: string;
 }
 
 @Controller('leetcode')
@@ -28,9 +62,18 @@ export class LeetCodeController {
     return this.leetcodeService.getLinkStatus(user.sub);
   }
 
+  /** Step 1: returns a code to put in the LeetCode profile "About me". */
+  @RateLimit(10)
   @Post('link')
   link(@CurrentUser() user: JwtPayload, @Body() dto: LinkAccountDto) {
-    return this.leetcodeService.linkAccount(user.sub, dto.leetcodeUsername);
+    return this.leetcodeService.startLink(user.sub, dto.leetcodeUsername);
+  }
+
+  /** Step 2: checks the code on LeetCode, then links the account. */
+  @RateLimit(10)
+  @Post('link/verify')
+  verifyLink(@CurrentUser() user: JwtPayload, @Body() dto: LinkAccountDto) {
+    return this.leetcodeService.verifyLink(user.sub, dto.leetcodeUsername);
   }
 
   @Delete('link')
@@ -38,38 +81,31 @@ export class LeetCodeController {
     return this.leetcodeService.unlinkAccount(user.sub);
   }
 
+  @RateLimit(4)
   @Post('sync')
   manualSync(@CurrentUser() user: JwtPayload) {
     return this.leetcodeService.manualSync(user.sub);
   }
 
   @Get('sync/history')
-  syncHistory(@CurrentUser() user: JwtPayload, @Query('limit') limit?: number) {
-    return this.leetcodeService.getSyncHistory(user.sub, limit);
+  syncHistory(@CurrentUser() user: JwtPayload, @Query() q: LimitQueryDto) {
+    return this.leetcodeService.getSyncHistory(user.sub, q.limit);
   }
 
   // ── Extension real-time solve ──────────────────────────────────────
 
+  @AllowExtensionToken()
+  @RateLimit(30)
   @Post('extension-solve')
-  extensionSolve(
-    @CurrentUser() user: JwtPayload,
-    @Body('problemSlug') problemSlug: string,
-    @Body('language') language: string,
-    @Body('solvedAt') solvedAt: string,
-  ) {
-    return this.solvesService.extensionSolve(
-      user.sub,
-      problemSlug,
-      language ?? 'unknown',
-      solvedAt ? new Date(solvedAt) : new Date(),
-    );
+  extensionSolve(@CurrentUser() user: JwtPayload, @Body() dto: ExtensionSolveDto) {
+    return this.solvesService.verifyExtensionSolve(user.sub, dto.problemSlug);
   }
 
   // ── Solves ─────────────────────────────────────────────────────
 
   @Get('solves')
-  getRecentSolves(@CurrentUser() user: JwtPayload, @Query('limit') limit?: number) {
-    return this.solvesService.getRecentSolves(user.sub, limit);
+  getRecentSolves(@CurrentUser() user: JwtPayload, @Query() q: LimitQueryDto) {
+    return this.solvesService.getRecentSolves(user.sub, q.limit);
   }
 
   @Get('stats')
@@ -78,8 +114,8 @@ export class LeetCodeController {
   }
 
   @Get('heatmap')
-  getHeatmap(@CurrentUser() user: JwtPayload, @Query('days') days?: number) {
-    return this.solvesService.getHeatmap(user.sub, days);
+  getHeatmap(@CurrentUser() user: JwtPayload, @Query() q: HeatmapQueryDto) {
+    return this.solvesService.getHeatmap(user.sub, q.days);
   }
 
   // ── Streak ─────────────────────────────────────────────────────
@@ -91,24 +127,23 @@ export class LeetCodeController {
 
   // ── Solve sessions ─────────────────────────────────────────────
 
+  @AllowExtensionToken()
   @Post('sessions')
-  startSession(
-    @CurrentUser() user: JwtPayload,
-    @Body('problemSlug') slug: string,
-  ) {
-    return this.solvesService.startSession(user.sub, slug);
+  startSession(@CurrentUser() user: JwtPayload, @Body() dto: StartSessionDto) {
+    return this.solvesService.startSession(user.sub, dto.problemSlug);
   }
 
+  @AllowExtensionToken()
   @Post('sessions/:id/complete')
   completeSession(
     @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.solvesService.completeSession(id, user.sub);
   }
 
   @Get('sessions')
-  getSessions(@CurrentUser() user: JwtPayload, @Query('limit') limit?: number) {
-    return this.solvesService.getSessions(user.sub, limit);
+  getSessions(@CurrentUser() user: JwtPayload, @Query() q: LimitQueryDto) {
+    return this.solvesService.getSessions(user.sub, q.limit);
   }
 }

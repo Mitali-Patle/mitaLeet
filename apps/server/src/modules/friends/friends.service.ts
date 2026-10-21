@@ -48,8 +48,12 @@ export class FriendsService {
       throw new ConflictException('Friend request already exists');
     }
 
-    const request = await this.prisma.friendRequest.create({
-      data: { senderId, receiverId: dto.receiverId },
+    // One row per direction (unique senderId+receiverId). After a decline or an
+    // unfriend the old row is reopened instead of inserting a duplicate.
+    const request = await this.prisma.friendRequest.upsert({
+      where: { senderId_receiverId: { senderId, receiverId: dto.receiverId } },
+      create: { senderId, receiverId: dto.receiverId },
+      update: { status: 'PENDING' },
       include: {
         sender: { select: { id: true, displayName: true, avatarUrl: true } },
       },
@@ -85,16 +89,19 @@ export class FriendsService {
       throw new BadRequestException('Request already processed');
     }
 
-    await this.prisma.friendRequest.update({
-      where: { id: requestId },
+    const moved = await this.prisma.friendRequest.updateMany({
+      where: { id: requestId, status: 'PENDING' },
       data: { status: action },
     });
+    if (moved.count === 0) throw new BadRequestException('Request already processed');
 
     if (action === 'ACCEPTED') {
       // Create bidirectional friendship
       const [userA, userB] = [request.senderId, request.receiverId].sort();
-      await this.prisma.friendship.create({
-        data: { userAId: userA, userBId: userB },
+      await this.prisma.friendship.upsert({
+        where: { userAId_userBId: { userAId: userA, userBId: userB } },
+        create: { userAId: userA, userBId: userB },
+        update: {},
       });
 
       // Notify sender
@@ -133,12 +140,16 @@ export class FriendsService {
       where: { OR: [{ userAId: userId }, { userBId: userId }] },
       include: {
         userA: {
-          select: { id: true, displayName: true, avatarUrl: true, status: true },
-          include: { profile: { select: { username: true, xp: true } } },
+          select: {
+            id: true, displayName: true, avatarUrl: true, status: true,
+            profile: { select: { username: true, xp: true } },
+          },
         },
         userB: {
-          select: { id: true, displayName: true, avatarUrl: true, status: true },
-          include: { profile: { select: { username: true, xp: true } } },
+          select: {
+            id: true, displayName: true, avatarUrl: true, status: true,
+            profile: { select: { username: true, xp: true } },
+          },
         },
       },
     });
@@ -159,8 +170,10 @@ export class FriendsService {
       where: { receiverId: userId, status: 'PENDING' },
       include: {
         sender: {
-          select: { id: true, displayName: true, avatarUrl: true },
-          include: { profile: { select: { username: true } } },
+          select: {
+            id: true, displayName: true, avatarUrl: true,
+            profile: { select: { username: true } },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -173,8 +186,10 @@ export class FriendsService {
       where: { senderId: userId, status: 'PENDING' },
       include: {
         receiver: {
-          select: { id: true, displayName: true, avatarUrl: true },
-          include: { profile: { select: { username: true } } },
+          select: {
+            id: true, displayName: true, avatarUrl: true,
+            profile: { select: { username: true } },
+          },
         },
       },
       orderBy: { createdAt: 'desc' },

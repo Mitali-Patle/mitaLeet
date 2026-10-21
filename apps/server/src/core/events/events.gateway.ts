@@ -7,7 +7,7 @@ import {
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleDestroy } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,6 +20,8 @@ export const WS_EVENTS = {
   LEAVE_GROUP: 'leave_group',
   STATUS_UPDATE: 'status_update',
   HEARTBEAT: 'heartbeat',
+  JOIN_ROOM: 'join_room',   // { room: 'race:<id>' } — race participants only
+  LEAVE_ROOM: 'leave_room',
 
   // ── Server → Client ────────────────────────────────────
   MEMBER_STATUS: 'member_status',
@@ -69,7 +71,7 @@ interface PresenceEntry {
   pingTimeout: 10000,
 })
 export class EventsGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
+  implements OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy
 {
   @WebSocketServer()
   server!: Server;
@@ -83,17 +85,30 @@ export class EventsGateway
     private prisma: PrismaService,
   ) {}
 
-  afterInit() {
+  afterInit(server: Server) {
+    // Authenticate during the handshake, before 'connect' reaches the client.
+    // Doing it in handleConnection let a client's first message (e.g. join_room
+    // sent right after connecting) arrive before its user was attached.
+    server.use(async (socket, next) => {
+      const user = await this.authenticateSocket(socket);
+      if (!user) return next(new Error('Unauthorized'));
+      (socket as any).user = user;
+      next();
+    });
+
     // Sweep stale connections every 60s
     this.heartbeatInterval = setInterval(() => this.sweepStale(), 60_000);
   }
 
+  onModuleDestroy() {
+    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+  }
+
   async handleConnection(client: Socket) {
     try {
-      const user = await this.authenticateSocket(client);
+      const user = (client as any).user as JwtPayload | undefined; // set by the handshake middleware
       if (!user) { client.disconnect(); return; }
 
-      (client as any).user = user;
       this.trackConnection(user.sub, client.id);
 
       // Set user ONLINE in DB
@@ -146,12 +161,21 @@ export class EventsGateway
   // ── Client events ──────────────────────────────────────────────────
 
   @SubscribeMessage(WS_EVENTS.JOIN_GROUP)
-  handleJoinGroup(
+  async handleJoinGroup(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { groupId: string },
   ) {
+    const user = (client as any).user as JwtPayload | undefined;
+    if (!user || typeof data?.groupId !== 'string') return { ok: false };
+
+    // Only members may subscribe to a squad's live events.
+    const member = await this.prisma.groupMember.findUnique({
+      where: { userId_groupId: { userId: user.sub, groupId: data.groupId } },
+      select: { id: true },
+    });
+    if (!member) return { ok: false };
+
     client.join(`group:${data.groupId}`);
-    const user = (client as any).user as JwtPayload;
 
     // Notify group members
     this.server.to(`group:${data.groupId}`).emit(WS_EVENTS.GROUP_MEMBER_JOINED, {
@@ -175,6 +199,35 @@ export class EventsGateway
       userId: user.sub,
       groupId: data.groupId,
     });
+  }
+
+  /** Subscribe to a race room's live events. Only that race's participants may join. */
+  @SubscribeMessage(WS_EVENTS.JOIN_ROOM)
+  async handleJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { room: string },
+  ) {
+    const user = (client as any).user as JwtPayload | undefined;
+    const match = typeof data?.room === 'string' ? /^race:([0-9a-f-]{36})$/.exec(data.room) : null;
+    if (!user || !match) return { ok: false };
+
+    const participant = await this.prisma.raceParticipant.findUnique({
+      where: { userId_roomId: { userId: user.sub, roomId: match[1] } },
+      select: { id: true },
+    });
+    if (!participant) return { ok: false };
+
+    client.join(data.room);
+    return { ok: true };
+  }
+
+  @SubscribeMessage(WS_EVENTS.LEAVE_ROOM)
+  handleLeaveRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { room: string },
+  ) {
+    if (typeof data?.room === 'string' && data.room.startsWith('race:')) client.leave(data.room);
+    return { ok: true };
   }
 
   @SubscribeMessage(WS_EVENTS.STATUS_UPDATE)
@@ -324,7 +377,14 @@ export class EventsGateway
       client.handshake?.headers?.authorization?.replace('Bearer ', '');
     if (!token) return null;
     try {
-      return await this.jwtService.verifyAsync<JwtPayload>(token);
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+      if (payload.scope === 'extension') return null; // extension tokens are HTTP-only
+      // Reject tokens whose session was logged out.
+      const session = await this.prisma.userSession.findUnique({
+        where: { id: payload.sessionId ?? '' },
+        select: { expiresAt: true },
+      });
+      return session && session.expiresAt > new Date() ? payload : null;
     } catch {
       return null;
     }

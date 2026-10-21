@@ -1,10 +1,13 @@
 import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
-import { LeaderboardService, LeaderboardPeriod } from './leaderboard.service';
+import { LeaderboardService } from './leaderboard.service';
 import { ChallengeService } from './challenge.service';
 import { XPService } from './xp.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { CreateChallengeDto } from './dto/challenge.dto';
+import { RateLimit } from '../../common/throttle/rate-limit';
+import { LeaderboardQueryDto } from '../../common/dto/query.dto';
 
 @Controller('gamification')
 export class GamificationController {
@@ -33,12 +36,8 @@ export class GamificationController {
   // ── Leaderboards ───────────────────────────────────────────────
 
   @Get('leaderboard/global')
-  getGlobal(
-    @Query('period') period: LeaderboardPeriod = 'alltime',
-    @Query('limit') limit = 50,
-    @Query('offset') offset = 0,
-  ) {
-    return this.leaderboard.getGlobal(period, +limit, +offset);
+  getGlobal(@Query() q: LeaderboardQueryDto) {
+    return this.leaderboard.getGlobal(q.period ?? 'alltime', q.limit ?? 50, q.offset ?? 0);
   }
 
   @Get('leaderboard/friends')
@@ -47,8 +46,8 @@ export class GamificationController {
   }
 
   @Get('leaderboard/groups/:groupId')
-  getGroup(@Param('groupId') groupId: string) {
-    return this.leaderboard.getGroup(groupId);
+  getGroup(@CurrentUser() user: JwtPayload, @Param('groupId') groupId: string) {
+    return this.leaderboard.getGroupForMember(user.sub, groupId);
   }
 
   // ── Challenges ─────────────────────────────────────────────────
@@ -59,15 +58,16 @@ export class GamificationController {
   }
 
   @Get('challenges/group/:groupId')
-  getGroupChallenges(@Param('groupId') groupId: string) {
-    return this.challenge.getGroupChallenges(groupId);
+  getGroupChallenges(@CurrentUser() user: JwtPayload, @Param('groupId') groupId: string) {
+    return this.challenge.getGroupChallenges(user.sub, groupId);
   }
 
+  @RateLimit(20)
   @Post('challenges/group/:groupId')
   createChallenge(
     @CurrentUser() user: JwtPayload,
     @Param('groupId') groupId: string,
-    @Body() body: any,
+    @Body() body: CreateChallengeDto,
   ) {
     return this.challenge.createChallenge(user.sub, groupId, body);
   }

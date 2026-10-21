@@ -11,16 +11,19 @@ import { GroupsService } from './groups.service';
 import { CreateGroupDto, JoinGroupDto } from './dto/groups.dto';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
+import { RateLimit } from '../../common/throttle/rate-limit';
 
 @Controller('groups')
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 
+  @RateLimit(10)
   @Post()
   create(@CurrentUser() user: JwtPayload, @Body() dto: CreateGroupDto) {
     return this.groupsService.create(user.sub, dto);
   }
 
+  @RateLimit(10)
   @Post('join')
   joinByCode(@CurrentUser() user: JwtPayload, @Body() dto: JoinGroupDto) {
     return this.groupsService.joinByCode(user.sub, dto);
@@ -37,13 +40,13 @@ export class GroupsController {
   }
 
   @Get(':id/leaderboard')
-  getLeaderboard(@Param('id') id: string) {
-    return this.groupsService.getLeaderboard(id);
+  getLeaderboard(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.groupsService.getLeaderboard(id, user.sub);
   }
 
   @Get(':id/activity')
-  getActivity(@Param('id') id: string) {
-    return this.groupsService.getActivity(id);
+  getActivity(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.groupsService.getActivity(id, user.sub);
   }
 
   @Delete(':id/leave')

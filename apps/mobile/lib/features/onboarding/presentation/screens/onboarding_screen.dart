@@ -1,21 +1,30 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_endpoints.dart';
+import '../../../../shared/widgets/lc_toast.dart';
+import '../../../auth/providers/auth_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_animations.dart';
 import '../../../../shared/widgets/lc_button.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 
 /// Onboarding screen — username + LeetCode setup for new users.
-class OnboardingScreen extends StatefulWidget {
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  /// Same rule as the server: 3-24 lowercase letters, digits or underscores.
+  static final _usernamePattern = RegExp(r'^[a-z0-9_]{3,24}$');
+
   final _usernameController = TextEditingController();
   final _leetcodeController = TextEditingController();
   bool _isLoading = false;
@@ -28,13 +37,40 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _completeSetup() async {
-    if (_usernameController.text.trim().isEmpty) return;
+    final username = _usernameController.text.trim().toLowerCase();
+    if (!_usernamePattern.hasMatch(username)) {
+      _toast('Invalid username', '3-24 characters: lowercase letters, numbers, underscores');
+      return;
+    }
     setState(() => _isLoading = true);
 
-    // TODO: Call API to update profile
-    await Future.delayed(AppAnimations.slow);
+    try {
+      await ref.read(apiClientProvider).put(
+        ApiEndpoints.usersMeProfile,
+        data: {'username': username},
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _toast(
+        'Could not save username',
+        e.response?.statusCode == 409 ? 'That username is taken' : 'Check your connection and try again',
+      );
+      return;
+    }
+    if (!mounted) return;
 
-    if (mounted) context.go('/');
+    ref.read(authStateProvider.notifier).completeOnboarding();
+
+    // Linking needs a verification step, so continue on the LeetCode screen.
+    final leetcode = _leetcodeController.text.trim();
+    context.go(leetcode.isEmpty
+        ? '/'
+        : Uri(path: '/coding/leetcode', queryParameters: {'username': leetcode}).toString());
+  }
+
+  void _toast(String title, String subtitle) {
+    LCToastManager.show(context, title: title, subtitle: subtitle, accentColor: AppColors.error);
   }
 
   @override
@@ -50,7 +86,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const SizedBox(height: AppSpacing.huge),
 
               Text(
-                'SET UP YOUR PROFILE',
+                'Set up your profile',
                 style: AppTypography.stat(
                   fontSize: 20,
                   color: AppColors.onSurface,
@@ -58,7 +94,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'CHOOSE A USERNAME AND LINK YOUR LEETCODE ACCOUNT',
+                'Choose a username and link your LeetCode account',
                 style: AppTypography.tacticalLabel(
                   color: AppColors.onSurfaceDim,
                 ),
@@ -67,12 +103,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
               // Username field
               Text(
-                'USERNAME',
+                'Username',
                 style: AppTypography.tacticalLabel(),
               ),
               const SizedBox(height: AppSpacing.sm),
               TextField(
                 controller: _usernameController,
+                autocorrect: false,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp('[a-zA-Z0-9_]')),
+                  LengthLimitingTextInputFormatter(24),
+                ],
                 style: Theme.of(context).textTheme.bodyLarge,
                 decoration: const InputDecoration(
                   hintText: 'your_username',
@@ -83,7 +124,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
               // LeetCode username field
               Text(
-                'LEETCODE USERNAME',
+                'LeetCode username',
                 style: AppTypography.tacticalLabel(),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -97,7 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
-                'OPTIONAL. REQUIRED FOR AUTOMATIC SOLVE TRACKING.',
+                'Optional. Required for automatic solve tracking.',
                 style: AppTypography.tacticalLabel(
                   fontSize: 8,
                   color: AppColors.onSurfaceDim,
@@ -109,7 +150,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               SizedBox(
                 width: double.infinity,
                 child: LCButton(
-                  label: 'COMPLETE SETUP',
+                  label: 'Complete setup',
                   isLoading: _isLoading,
                   isExpanded: true,
                   onPressed: _completeSetup,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_radius.dart';
-import '../../core/theme/app_shadows.dart';
 
 /// Container with subtle metallic accent styling.
 ///
@@ -28,26 +27,12 @@ class LCMetallicContainer extends StatelessWidget {
       margin: margin,
       padding: padding ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.surfaceContainerHigh,
-            AppColors.surfaceVariant,
-            if (intensity == MetallicIntensity.prominent)
-              AppColors.surfaceContainerHigh.withValues(alpha: 0.8),
-          ],
-        ),
+        // Flat panel; "prominent" is one step lighter, not a glossy effect.
+        color: intensity == MetallicIntensity.prominent
+            ? AppColors.surfaceVariant
+            : const Color(0xFF151519),
         borderRadius: AppRadius.cardRadius,
-        border: Border.all(
-          color: intensity == MetallicIntensity.prominent
-              ? AppColors.metallic.withValues(alpha: 0.25)
-              : AppColors.surfaceBorder,
-          width: 0.75,
-        ),
-        boxShadow: intensity == MetallicIntensity.prominent
-            ? AppShadows.metallicEdge
-            : null,
+        border: Border.all(color: AppColors.surfaceBorder, width: 1),
       ),
       child: child,
     );

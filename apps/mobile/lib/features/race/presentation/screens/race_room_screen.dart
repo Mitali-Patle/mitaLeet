@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -13,7 +15,7 @@ import '../../../../core/socket/socket_service.dart';
 import '../../../../core/socket/socket_events.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
 import '../../../../shared/widgets/lc_button.dart';
-import 'race_results_screen.dart';
+import '../../../../shared/widgets/lc_toast.dart';
 
 class RaceRoomScreen extends ConsumerStatefulWidget {
   const RaceRoomScreen({super.key, required this.roomId, required this.isCreator});
@@ -99,10 +101,7 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
       if (!mounted) return;
       _elapsedTimer?.cancel();
       final results = (data['results'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => RaceResultsScreen(results: results)),
-      );
+      context.pushReplacement('/races/${widget.roomId}/results', extra: results);
     });
   }
 
@@ -123,11 +122,27 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
     setState(() => _myStatus = status);
   }
 
+  /// The server only accepts a finish once LeetCode shows the accepted
+  /// submission (409 until then), so only mark ACCEPTED on success.
   Future<void> _submitSolve() async {
     setState(() => _isSubmitting = true);
     final api = ref.read(apiClientProvider);
-    final res = await api.post('/races/${widget.roomId}/solve');
-    setState(() { _isSubmitting = false; _myStatus = 'ACCEPTED'; });
+    try {
+      await api.post('/races/${widget.roomId}/solve');
+      if (!mounted) return;
+      setState(() { _isSubmitting = false; _myStatus = 'ACCEPTED'; });
+    } on DioException catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      LCToastManager.show(
+        context,
+        title: e.response?.statusCode == 409 ? 'Not verified yet' : 'Could not submit',
+        subtitle: e.response?.statusCode == 409
+            ? 'LeetCode has not shown your accepted submission yet. Try again in a few seconds.'
+            : 'Check your connection and try again',
+        accentColor: AppColors.error,
+      );
+    }
   }
 
   @override
@@ -199,13 +214,13 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
                       '$_countdown',
                       style: AppTypography.stat(fontSize: 72, color: AppColors.primary),
                     ),
-                    Text('STARTING', style: AppTypography.tacticalLabel(color: AppColors.primary)),
+                    Text('Starting', style: AppTypography.tacticalLabel(color: AppColors.primary)),
                   ],
                 ),
               ),
 
             // ── Participants ──────────────────────────────────
-            Text('PARTICIPANTS', style: AppTypography.tacticalLabel()),
+            Text('Participants', style: AppTypography.tacticalLabel()),
             const SizedBox(height: AppSpacing.md),
             ...participants.map((p) => _ParticipantRow(participant: p)),
 
@@ -216,7 +231,7 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
               SizedBox(
                 width: double.infinity,
                 child: LCButton(
-                  label: 'START RACE',
+                  label: 'Start race',
                   icon: PhosphorIconsBold.flagCheckered,
                   isExpanded: true,
                   onPressed: _startRace,
@@ -232,7 +247,7 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
               SizedBox(
                 width: double.infinity,
                 child: LCButton(
-                  label: 'MARK AS ACCEPTED',
+                  label: 'I got accepted — verify',
                   icon: PhosphorIconsBold.checkCircle,
                   isLoading: _isSubmitting,
                   isExpanded: true,
@@ -254,7 +269,7 @@ class _RaceRoomScreenState extends ConsumerState<RaceRoomScreen>
                   children: [
                     const Icon(PhosphorIconsBold.checkCircle, color: AppColors.success, size: 18),
                     const SizedBox(width: AppSpacing.md),
-                    Text('ACCEPTED — WAITING FOR OTHERS',
+                    Text('Accepted — waiting for others',
                         style: AppTypography.tacticalLabel(color: AppColors.success)),
                   ],
                 ),

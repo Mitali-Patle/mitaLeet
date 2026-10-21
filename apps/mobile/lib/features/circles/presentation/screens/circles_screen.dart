@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -48,14 +49,14 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
           autofocus: true,
           textCapitalization: TextCapitalization.characters,
           decoration: InputDecoration(
-            hintText: 'SQUAD CODE',
+            hintText: 'Squad code',
             hintStyle: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('CANCEL', style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim)),
+            child: Text('Cancel', style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim)),
           ),
           TextButton(
             onPressed: () async {
@@ -70,7 +71,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
                 ));
               }
             },
-            child: Text('JOIN', style: AppTypography.tacticalLabel(color: AppColors.primary)),
+            child: Text('Join', style: AppTypography.tacticalLabel(color: AppColors.primary)),
           ),
         ],
       ),
@@ -95,7 +96,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('CANCEL', style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim)),
+            child: Text('Cancel', style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim)),
           ),
           TextButton(
             onPressed: () async {
@@ -110,7 +111,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
                 ));
               }
             },
-            child: Text('CREATE', style: AppTypography.tacticalLabel(color: AppColors.primary)),
+            child: Text('Create', style: AppTypography.tacticalLabel(color: AppColors.primary)),
           ),
         ],
       ),
@@ -159,7 +160,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
-                          'ENTER SQUAD CODE TO JOIN',
+                          'Enter squad code to join',
                           style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
                         ),
                       ),
@@ -178,7 +179,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
               ),
               const SizedBox(height: AppSpacing.sectionGap),
 
-              Text('YOUR SQUADS', style: AppTypography.tacticalLabel()),
+              Text('Your squads', style: AppTypography.tacticalLabel()),
               const SizedBox(height: AppSpacing.md),
 
               if (gs.isLoading && gs.groups.isEmpty)
@@ -187,7 +188,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
                 LCCard(
                   child: Center(
                     child: Text(
-                      'NO SQUADS YET — JOIN OR CREATE ONE',
+                      'No squads yet — join or create one',
                       style: AppTypography.tacticalLabel(
                         color: AppColors.onSurfaceDim,
                         fontSize: 9,
@@ -201,6 +202,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.itemGap),
                     child: _SquadCard(
+                      onTap: () => context.push('/squads/${group.id}'),
                       name: group.name,
                       memberCount: group.memberCount,
                       activeMemberCount: group.activeMemberCount,
@@ -219,6 +221,7 @@ class _CirclesScreenState extends ConsumerState<CirclesScreen> {
 
 class _SquadCard extends StatelessWidget {
   const _SquadCard({
+    required this.onTap,
     required this.name,
     required this.memberCount,
     required this.activeMemberCount,
@@ -226,6 +229,7 @@ class _SquadCard extends StatelessWidget {
     this.rank,
   });
 
+  final VoidCallback onTap;
   final String name;
   final int memberCount;
   final int activeMemberCount;
@@ -236,7 +240,7 @@ class _SquadCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return LCCard(
       metallicAccent: true,
-      onTap: () {},
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -288,14 +292,14 @@ class _SquadCard extends StatelessWidget {
               Icon(PhosphorIconsBold.users, size: 12, color: AppColors.onSurfaceDim),
               const SizedBox(width: 4),
               Text(
-                '$memberCount MEMBERS',
+                '$memberCount members',
                 style: AppTypography.tacticalLabel(fontSize: 9),
               ),
               const SizedBox(width: AppSpacing.lg),
               const LCStatusBadge(status: UserStatusType.online, size: 6),
               const SizedBox(width: 4),
               Text(
-                '$activeMemberCount ACTIVE',
+                '$activeMemberCount active',
                 style: AppTypography.tacticalLabel(
                   fontSize: 9,
                   color: AppColors.statusOnline,

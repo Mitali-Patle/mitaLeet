@@ -7,6 +7,7 @@ abstract final class ApiEndpoints {
   static const String authRefresh = '/auth/refresh';
   static const String authLogout = '/auth/logout';
   static const String authLogoutAll = '/auth/logout-all';
+  static const String authExtensionToken = '/auth/extension-token';
 
   // ── Users ───────────────────────────────────────────────────────────
   static const String usersMe = '/users/me';
@@ -47,6 +48,7 @@ abstract final class ApiEndpoints {
   // ── LeetCode ─────────────────────────────────────────────────────
   static const String lcStatus = '/leetcode/status';
   static const String lcLink = '/leetcode/link';
+  static const String lcLinkVerify = '/leetcode/link/verify';
   static const String lcSync = '/leetcode/sync';
   static const String lcSyncHistory = '/leetcode/sync/history';
   static const String lcSolves = '/leetcode/solves';

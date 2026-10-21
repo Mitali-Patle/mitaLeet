@@ -2,14 +2,15 @@ import { Controller, Get, Put, Param, Query } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../core/auth/types';
+import { LimitQueryDto } from '../../common/dto/query.dto';
 
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  getAll(@CurrentUser() user: JwtPayload, @Query('limit') limit?: number) {
-    return this.notificationsService.getByUser(user.sub, limit);
+  getAll(@CurrentUser() user: JwtPayload, @Query() q: LimitQueryDto) {
+    return this.notificationsService.getByUser(user.sub, q.limit);
   }
 
   @Get('unread-count')

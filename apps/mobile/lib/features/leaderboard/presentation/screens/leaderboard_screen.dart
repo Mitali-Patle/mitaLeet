@@ -69,11 +69,11 @@ class LeaderboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
               child: Row(
                 children: [
-                  _PeriodChip(label: 'WEEKLY', isSelected: true),
+                  _PeriodChip(label: 'Weekly', isSelected: true),
                   const SizedBox(width: AppSpacing.sm),
-                  _PeriodChip(label: 'MONTHLY', isSelected: false),
+                  _PeriodChip(label: 'Monthly', isSelected: false),
                   const SizedBox(width: AppSpacing.sm),
-                  _PeriodChip(label: 'ALL TIME', isSelected: false),
+                  _PeriodChip(label: 'All time', isSelected: false),
                 ],
               ),
             ),

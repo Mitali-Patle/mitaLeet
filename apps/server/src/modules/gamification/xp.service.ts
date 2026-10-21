@@ -1,20 +1,56 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { EventsGateway, WS_EVENTS } from '../../core/events/events.gateway';
+import { NewSolvesEvent, SyncService } from '../leetcode/sync.service';
+import { getUserTimeZone, startOfLocalDay } from '../../common/time/user-day';
 import {
   XP_REWARDS, levelForXP, levelProgress, rankForXP,
   ACHIEVEMENTS, AchievementStats,
 } from './gamification.config';
-import { Rank } from '@prisma/client';
 
+/**
+ * The single authority for XP. Solve XP is only ever awarded here, in
+ * response to solves the sync pipeline verified against LeetCode.
+ */
 @Injectable()
-export class XPService {
+export class XPService implements OnModuleInit {
   private readonly logger = new Logger(XPService.name);
 
   constructor(
     private prisma: PrismaService,
     private events: EventsGateway,
+    private sync: SyncService,
   ) {}
+
+  onModuleInit() {
+    this.sync.onNewSolves((event) => this.awardForVerifiedSolves(event));
+  }
+
+  /**
+   * Today's solves earn full solve XP (streak + first-of-day bonuses);
+   * older solves imported on first link earn base XP only, in one award.
+   */
+  async awardForVerifiedSolves({ userId, solves }: NewSolvesEvent): Promise<void> {
+    const todayStart = startOfLocalDay(new Date(), await getUserTimeZone(this.prisma, userId));
+
+    const older = solves.filter((s) => s.solvedAt < todayStart);
+    const today = solves
+      .filter((s) => s.solvedAt >= todayStart)
+      .sort((a, b) => a.solvedAt.getTime() - b.solvedAt.getTime());
+
+    if (older.length > 0) {
+      const historyXP = older.reduce((t, s) => t + XP_REWARDS[s.difficulty], 0);
+      await this.awardBonusXP(userId, historyXP, 'solve_history');
+    }
+
+    if (today.length > 0) {
+      const solvedTodayBefore =
+        (await this.prisma.solve.count({ where: { userId, solvedAt: { gte: todayStart } } })) - today.length;
+      for (const [i, solve] of today.entries()) {
+        await this.awardSolveXP(userId, solve.difficulty, solvedTodayBefore === 0 && i === 0);
+      }
+    }
+  }
 
   /**
    * Award XP for a completed solve.
@@ -25,10 +61,6 @@ export class XPService {
     difficulty: 'EASY' | 'MEDIUM' | 'HARD',
     isFirstOfDay: boolean,
   ): Promise<void> {
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-      select: { xp: true, level: true, rank: true },
-    });
     const streak = await this.prisma.streak.findUnique({
       where: { userId },
       select: { currentStreak: true },
@@ -39,16 +71,12 @@ export class XPService {
     const firstDayBonus = isFirstOfDay ? XP_REWARDS.FIRST_SOLVE_OF_DAY : 0;
     const totalXP = baseXP + streakBonus + firstDayBonus;
 
-    await this.applyXP(userId, totalXP, profile?.xp ?? 0, profile?.level ?? 1, profile?.rank ?? 'INITIATE');
+    await this.applyXP(userId, totalXP);
   }
 
   /** Award flat XP (for achievements, challenges, etc.) */
   async awardBonusXP(userId: string, amount: number, reason: string): Promise<void> {
-    const profile = await this.prisma.userProfile.findUnique({
-      where: { userId },
-      select: { xp: true, level: true, rank: true },
-    });
-    await this.applyXP(userId, amount, profile?.xp ?? 0, profile?.level ?? 1, profile?.rank ?? 'INITIATE', reason);
+    await this.applyXP(userId, amount, reason);
   }
 
   /** Get full progression data for a user. */
@@ -67,22 +95,27 @@ export class XPService {
 
   // ── Private ─────────────────────────────────────────────────────
 
-  private async applyXP(
-    userId: string,
-    amount: number,
-    currentXP: number,
-    currentLevel: number,
-    currentRank: Rank,
-    reason = 'solve',
-  ): Promise<void> {
-    const newXP = currentXP + amount;
-    const newLevel = levelForXP(newXP);
-    const newRank = rankForXP(newXP);
+  private async applyXP(userId: string, amount: number, reason = 'solve'): Promise<void> {
+    if (amount <= 0) return;
 
-    await this.prisma.userProfile.update({
-      where: { userId },
-      data: { xp: newXP, level: newLevel, rank: newRank },
-    });
+    // Atomic increment: concurrent awards can no longer overwrite each other.
+    const { newXP, newLevel, newRank, currentLevel, currentRank } =
+      await this.prisma.$transaction(async (tx) => {
+        const updated = await tx.userProfile.update({
+          where: { userId },
+          data: { xp: { increment: amount } },
+          select: { xp: true, level: true, rank: true },
+        });
+        const level = levelForXP(updated.xp);
+        const rank = rankForXP(updated.xp);
+        if (level !== updated.level || rank !== updated.rank) {
+          await tx.userProfile.update({ where: { userId }, data: { level, rank } });
+        }
+        return {
+          newXP: updated.xp, newLevel: level, newRank: rank,
+          currentLevel: updated.level, currentRank: updated.rank,
+        };
+      });
 
     // Emit XP gained
     this.events.emitToUser(userId, WS_EVENTS.XP_GAINED, {

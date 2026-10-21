@@ -2,7 +2,7 @@
   "name": "mitaleet-extension",
   "displayName": "mitaLeet",
   "version": "0.1.0",
-  "description": "mitaLeet browser extension — realtime solve tracking for your coding circle.",
+  "description": "mitaLeet browser extension \u2014 realtime solve tracking for your coding circle.",
   "author": "mitaLeet",
   "scripts": {
     "dev": "plasmo dev",
@@ -23,8 +23,15 @@
     "typescript": "^5.4.0"
   },
   "manifest": {
-    "permissions": ["storage", "activeTab", "scripting"],
-    "host_permissions": ["https://leetcode.com/*", "http://localhost/*", "http://192.168.*.*/*"],
+    "permissions": [
+      "storage",
+      "activeTab",
+      "scripting"
+    ],
+    "host_permissions": [
+      "https://leetcode.com/*",
+      "$PLASMO_PUBLIC_API_URL/*"
+    ],
     "content_security_policy": {
       "extension_pages": "script-src 'self'; object-src 'self'"
     }

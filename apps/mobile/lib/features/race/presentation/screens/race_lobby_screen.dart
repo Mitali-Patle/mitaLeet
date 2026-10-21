@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/theme/app_radius.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
 import '../../../../shared/widgets/lc_button.dart';
-import 'race_room_screen.dart';
 
 /// Solve race lobby — create or join a race room.
 class RaceLobbyScreen extends ConsumerStatefulWidget {
@@ -41,10 +40,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
       final res = await api.post('/races', data: { 'problemSlug': slug });
       final room = res.data['data'];
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => RaceRoomScreen(roomId: room['id'], isCreator: true)),
-      );
+      context.pushReplacement('/races/${room['id']}?host=1');
     } catch (e) {
       setState(() => _error = 'Failed to create room');
     } finally {
@@ -61,10 +57,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
       final res = await api.post('/races/join', data: { 'code': code });
       final room = res.data['data'];
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => RaceRoomScreen(roomId: room['id'], isCreator: false)),
-      );
+      context.pushReplacement('/races/${room['id']}');
     } catch (e) {
       setState(() => _error = 'Room not found or already started');
     } finally {
@@ -85,7 +78,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
             const SizedBox(height: AppSpacing.xl),
 
             // ── Create section ─────────────────────────────────
-            _SectionHeader(icon: PhosphorIconsBold.plus, label: 'CREATE ROOM'),
+            _SectionHeader(icon: PhosphorIconsBold.plus, label: 'Create room'),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _slugCtrl,
@@ -98,7 +91,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
             SizedBox(
               width: double.infinity,
               child: LCButton(
-                label: 'CREATE RACE ROOM',
+                label: 'Create race room',
                 icon: PhosphorIconsBold.flagCheckered,
                 isLoading: _isCreating,
                 isExpanded: true,
@@ -111,7 +104,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
             const SizedBox(height: AppSpacing.xxxl),
 
             // ── Join section ───────────────────────────────────
-            _SectionHeader(icon: PhosphorIconsBold.signIn, label: 'JOIN ROOM'),
+            _SectionHeader(icon: PhosphorIconsBold.signIn, label: 'Join room'),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: _codeCtrl,
@@ -120,7 +113,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
               textAlign: TextAlign.center,
               maxLength: 6,
               decoration: const InputDecoration(
-                hintText: 'ROOM CODE',
+                hintText: 'Room code',
                 counterText: '',
               ),
             ),
@@ -128,7 +121,7 @@ class _RaceLobbyScreenState extends ConsumerState<RaceLobbyScreen> {
             SizedBox(
               width: double.infinity,
               child: LCButton(
-                label: 'JOIN ROOM',
+                label: 'Join room',
                 icon: PhosphorIconsBold.arrowRight,
                 isLoading: _isJoining,
                 isExpanded: true,

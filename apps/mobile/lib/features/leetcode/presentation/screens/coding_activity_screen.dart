@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -12,7 +13,6 @@ import '../widgets/lc_streak_card.dart';
 import '../widgets/lc_solve_card.dart';
 import '../widgets/lc_heatmap.dart';
 import '../widgets/lc_diff_breakdown.dart';
-import 'leetcode_link_screen.dart';
 
 /// Main coding activity dashboard screen.
 class CodingActivityScreen extends ConsumerStatefulWidget {
@@ -77,12 +77,16 @@ class _CodingActivityScreenState extends ConsumerState<CodingActivityScreen> {
               onPressed: () => ref.read(leetcodeProvider.notifier).triggerSync(),
             ),
           IconButton(
+            icon: const Icon(PhosphorIconsBold.chartBar, size: 18),
+            color: AppColors.onSurfaceMedium,
+            tooltip: 'Analytics',
+            onPressed: () => context.push('/coding/analytics'),
+          ),
+          IconButton(
             icon: const Icon(PhosphorIconsBold.gear, size: 18),
             color: AppColors.onSurfaceMedium,
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const LeetCodeLinkScreen()),
-            ),
+            tooltip: 'LeetCode account',
+            onPressed: () => context.push('/coding/leetcode'),
           ),
         ],
       ),
@@ -116,7 +120,7 @@ class _CodingActivityScreenState extends ConsumerState<CodingActivityScreen> {
 
             // ── Activity heatmap ─────────────────────────
             if (state.heatmap.isNotEmpty) ...[
-              Text('ACTIVITY', style: AppTypography.tacticalLabel()),
+              Text('Activity', style: AppTypography.tacticalLabel()),
               const SizedBox(height: AppSpacing.md),
               LCHeatmap(data: state.heatmap),
               const SizedBox(height: AppSpacing.sectionGap),
@@ -126,9 +130,9 @@ class _CodingActivityScreenState extends ConsumerState<CodingActivityScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('RECENT SOLVES', style: AppTypography.tacticalLabel()),
+                Text('Recent solves', style: AppTypography.tacticalLabel()),
                 Text(
-                  '${state.recentSolves.length} TOTAL',
+                  '${state.recentSolves.length} total',
                   style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.onSurfaceDim),
                 ),
               ],
@@ -139,7 +143,7 @@ class _CodingActivityScreenState extends ConsumerState<CodingActivityScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.xl),
                   child: Text(
-                    'NO SOLVES YET',
+                    'No solves yet',
                     style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
                   ),
                 ),
@@ -168,7 +172,7 @@ class _TodayRow extends StatelessWidget {
           child: _StatChip(
             icon: PhosphorIconsBold.checkSquare,
             value: '$todayCount',
-            label: 'TODAY',
+            label: 'Today',
             accent: isSolvedToday ? AppColors.success : AppColors.onSurfaceDim,
           ),
         ),
@@ -176,8 +180,8 @@ class _TodayRow extends StatelessWidget {
         Expanded(
           child: _StatChip(
             icon: PhosphorIconsBold.calendar,
-            value: isSolvedToday ? 'DONE' : 'PENDING',
-            label: 'DAILY GOAL',
+            value: isSolvedToday ? 'DONE' : 'Pending',
+            label: 'Daily goal',
             accent: isSolvedToday ? AppColors.success : AppColors.primary,
           ),
         ),
@@ -249,7 +253,7 @@ class _NotLinkedScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
-              Text('NO ACCOUNT LINKED',
+              Text('No account linked',
                   style: AppTypography.stat(fontSize: 16, color: AppColors.onSurface)),
               const SizedBox(height: AppSpacing.sm),
               Text(
@@ -266,13 +270,10 @@ class _NotLinkedScreen extends StatelessWidget {
                 child: ElevatedButton.icon(
                   icon: const Icon(PhosphorIconsBold.link, size: 16),
                   label: Text(
-                    'LINK LEETCODE',
+                    'Link LeetCode',
                     style: AppTypography.tacticalLabel(fontSize: 11, color: AppColors.onSurface),
                   ),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LeetCodeLinkScreen()),
-                  ),
+                  onPressed: () => context.push('/coding/leetcode'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 14),

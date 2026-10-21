@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { getUserTimeZone, localHour } from '../../common/time/user-day';
 
 export interface SolveAnalytics {
   totalSolves: number;
@@ -64,10 +65,11 @@ export class AnalyticsService {
       .map(([tag, count]) => ({ tag, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Hour distribution
+    // Hour distribution, in the user's local time
+    const tz = await getUserTimeZone(this.prisma, userId);
     const hourCounts = new Array(24).fill(0);
     for (const s of solves) {
-      hourCounts[new Date(s.solvedAt).getHours()]++;
+      hourCounts[localHour(s.solvedAt, tz)]++;
     }
     const avgSolveHour = hourCounts.indexOf(Math.max(...hourCounts));
 

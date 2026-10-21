@@ -118,7 +118,7 @@ class _LCXPBarState extends State<LCXPBar> with SingleTickerProviderStateMixin {
                           style: AppTypography.tacticalLabel(fontSize: 7, color: AppColors.onSurfaceDim),
                         ),
                         Text(
-                          '${p.nextLevelXP} XP TO LVL ${p.level + 1}',
+                          '${p.nextLevelXP} XP to level ${p.level + 1}',
                           style: AppTypography.tacticalLabel(fontSize: 7, color: AppColors.onSurfaceDim),
                         ),
                       ],
@@ -134,7 +134,7 @@ class _LCXPBarState extends State<LCXPBar> with SingleTickerProviderStateMixin {
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
-                Text('NEXT RANK', style: AppTypography.tacticalLabel(fontSize: 8)),
+                Text('Next rank', style: AppTypography.tacticalLabel(fontSize: 8)),
                 const Spacer(),
                 LCRankBadge(rank: p.nextRank!, size: BadgeSize.small),
               ],
@@ -155,7 +155,7 @@ class _CompactXPBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text('LVL ${progression.level}',
+        Text('Level ${progression.level}',
             style: AppTypography.stat(fontSize: 12, color: AppColors.primary)),
         const SizedBox(width: AppSpacing.md),
         Expanded(

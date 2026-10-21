@@ -4,6 +4,9 @@ services:
       context: ./apps/server
       dockerfile: Dockerfile
     env_file: ./apps/server/.env
+    environment:
+      # inside the compose network the database is "postgres", not localhost
+      DATABASE_URL: postgresql://mitaleet:mitaleet_dev@postgres:5432/mitaleet?schema=public
     ports:
       - '3000:3000'
     depends_on:
@@ -18,7 +21,7 @@ services:
     container_name: mitaleet-db
     restart: unless-stopped
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     environment:
       POSTGRES_USER: mitaleet
       POSTGRES_PASSWORD: mitaleet_dev
@@ -37,7 +40,7 @@ services:
     image: redis:7-alpine
     container_name: mitaleet-redis
     ports:
-      - '6379:6379'
+      - '127.0.0.1:6379:6379'
     restart: unless-stopped
     networks:
       - mitaleet

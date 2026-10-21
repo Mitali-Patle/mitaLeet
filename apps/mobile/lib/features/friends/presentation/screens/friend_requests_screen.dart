@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_animations.dart';
 import '../../../../shared/widgets/lc_app_bar.dart';
-import '../../../../shared/widgets/lc_button.dart';
 import '../../../friends/providers/friends_provider.dart';
 
 /// Incoming and outgoing friend requests.
@@ -70,8 +69,8 @@ class _FriendRequestsScreenState extends ConsumerState<FriendRequestsScreen>
               unselectedLabelColor: AppColors.onSurfaceDim,
               dividerHeight: 0,
               tabs: [
-                Tab(text: 'INCOMING (${state.incoming.length})'),
-                Tab(text: 'OUTGOING (${state.outgoing.length})'),
+                Tab(text: 'Incoming (${state.incoming.length})'),
+                Tab(text: 'Outgoing (${state.outgoing.length})'),
               ],
             ),
           ),
@@ -122,7 +121,7 @@ class _RequestList extends StatelessWidget {
     if (requests.isEmpty) {
       return Center(
         child: Text(
-          'NO ${type.toUpperCase()} REQUESTS',
+          'No ${type.toLowerCase()} requests',
           style: AppTypography.tacticalLabel(color: AppColors.onSurfaceDim),
         ),
       );

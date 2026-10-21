@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_constants.dart';
@@ -32,49 +34,93 @@ class ApiClient {
           return handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
-            final refreshToken = await storage.getRefreshToken();
-            if (refreshToken == null) {
-              await storage.clearAll();
-              return handler.next(error);
-            }
-
-            try {
-              // Use a plain Dio to avoid interceptor loops
-              final refreshDio = Dio(BaseOptions(baseUrl: AppConstants.baseUrl));
-              final res = await refreshDio.post<Map<String, dynamic>>(
-                ApiEndpoints.authRefresh,
-                data: {'refreshToken': refreshToken},
-              );
-
-              final data = res.data?['data'] as Map<String, dynamic>?;
-              final newAccess = data?['accessToken'] as String?;
-              final newRefresh = data?['refreshToken'] as String?;
-
-              if (newAccess == null) {
-                await storage.clearAll();
-                return handler.next(error);
-              }
-
-              await storage.setAccessToken(newAccess);
-              if (newRefresh != null) {
-                await storage.setRefreshToken(newRefresh);
-              }
-
-              // Retry original request with new token
-              final opts = error.requestOptions;
-              opts.headers['Authorization'] = 'Bearer $newAccess';
-              final retryRes = await _dio.fetch(opts);
-              return handler.resolve(retryRes);
-            } catch (_) {
-              await storage.clearAll();
-              return handler.next(error);
-            }
+          final opts = error.requestOptions;
+          final alreadyRetried = opts.extra['retriedAfterRefresh'] == true;
+          final isAuthCall = opts.path.startsWith('/auth/');
+          if (error.response?.statusCode != 401 || alreadyRetried || isAuthCall) {
+            return handler.next(error);
           }
-          return handler.next(error);
+
+          final newAccess = await _refreshAccessToken();
+          if (newAccess == null) return handler.next(error);
+
+          try {
+            opts.headers['Authorization'] = 'Bearer $newAccess';
+            opts.extra['retriedAfterRefresh'] = true;
+            return handler.resolve(await _dio.fetch(opts));
+          } on DioException catch (e) {
+            return handler.next(e);
+          }
         },
       ),
     );
+  }
+
+  /// A usable access token: the stored one, or a refreshed one if it expires
+  /// within a minute. Used by the WebSocket, which cannot react to HTTP 401s.
+  Future<String?> freshAccessToken() async {
+    final token = await storage.getAccessToken();
+    if (token == null) return null;
+    if (!_expiresWithin(token, const Duration(seconds: 60))) return token;
+    return _refreshAccessToken();
+  }
+
+  static bool _expiresWithin(String jwt, Duration margin) {
+    try {
+      final payload = jwt.split('.')[1];
+      final claims = jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(payload))));
+      final exp = DateTime.fromMillisecondsSinceEpoch((claims['exp'] as int) * 1000);
+      return exp.isBefore(DateTime.now().add(margin));
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Called when the session can no longer be renewed (user must sign in again).
+  void Function()? onSessionExpired;
+
+  /// The refresh in progress, shared by every request that hit a 401 meanwhile.
+  /// The server rotates refresh tokens, so two parallel refreshes would make
+  /// the second fail and log the user out.
+  Future<String?>? _refreshing;
+
+  Future<String?> _refreshAccessToken() {
+    return _refreshing ??= _doRefresh().whenComplete(() => _refreshing = null);
+  }
+
+  Future<String?> _doRefresh() async {
+    final refreshToken = await storage.getRefreshToken();
+    if (refreshToken == null) {
+      await _expireSession();
+      return null;
+    }
+    try {
+      // Plain Dio so the refresh call itself never goes through this interceptor.
+      final refreshDio = Dio(BaseOptions(baseUrl: AppConstants.baseUrl));
+      final res = await refreshDio.post<Map<String, dynamic>>(
+        ApiEndpoints.authRefresh,
+        data: {'refreshToken': refreshToken},
+      );
+      final data = res.data?['data'] as Map<String, dynamic>?;
+      final newAccess = data?['accessToken'] as String?;
+      final newRefresh = data?['refreshToken'] as String?;
+      if (newAccess == null) {
+        await _expireSession();
+        return null;
+      }
+      await storage.setAccessToken(newAccess);
+      if (newRefresh != null) await storage.setRefreshToken(newRefresh);
+      return newAccess;
+    } on DioException catch (e) {
+      // Only a rejected refresh ends the session; a network blip should not.
+      if (e.response?.statusCode == 401) await _expireSession();
+      return null;
+    }
+  }
+
+  Future<void> _expireSession() async {
+    await storage.clearAll();
+    onSessionExpired?.call();
   }
 
   final SecureStorage storage;
@@ -112,8 +158,8 @@ class ApiClient {
     return _dio.patch<T>(path, data: data);
   }
 
-  Future<Response<T>> delete<T>(String path) {
-    return _dio.delete<T>(path);
+  Future<Response<T>> delete<T>(String path, {dynamic data}) {
+    return _dio.delete<T>(path, data: data);
   }
 }
 

@@ -1,24 +1,26 @@
 import {
   Controller,
   Post,
+  Delete,
   Body,
   HttpCode,
   HttpStatus,
   UseGuards,
-  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { GoogleAuthDto, RefreshTokenDto, LogoutDto } from './dto/auth.dto';
+import { GoogleAuthDto, RefreshTokenDto, LogoutDto, DevLoginDto } from './dto/auth.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtPayload } from './types';
+import { RateLimit } from '../../common/throttle/rate-limit';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @RateLimit(10)
   @Post('google')
   @HttpCode(HttpStatus.OK)
   async googleAuth(@Body() dto: GoogleAuthDto) {
@@ -26,16 +28,15 @@ export class AuthController {
   }
 
   @Public()
+  @RateLimit(10)
   @Post('dev-login')
   @HttpCode(HttpStatus.OK)
-  async devLogin(@Body('username') username: string) {
-    if (!username) {
-      throw new BadRequestException('Username is required');
-    }
-    return this.authService.devLogin(username);
+  async devLogin(@Body() dto: DevLoginDto) {
+    return this.authService.devLogin(dto.username);
   }
 
   @Public()
+  @RateLimit(30)
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(@Body() dto: RefreshTokenDto) {
@@ -45,9 +46,23 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Body() dto: LogoutDto) {
-    await this.authService.logout(dto.refreshToken);
+  async logout(@CurrentUser() user: JwtPayload, @Body() dto: LogoutDto) {
+    await this.authService.logout(user.sub, user.sessionId, dto.refreshToken);
     return { message: 'Logged out' };
+  }
+
+  /** Create a token for the browser extension (replaces the previous one). */
+  @RateLimit(5)
+  @Post('extension-token')
+  @HttpCode(HttpStatus.CREATED)
+  issueExtensionToken(@CurrentUser() user: JwtPayload) {
+    return this.authService.issueExtensionToken(user.sub, user.email);
+  }
+
+  @Delete('extension-token')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeExtensionToken(@CurrentUser() user: JwtPayload) {
+    await this.authService.revokeExtensionToken(user.sub);
   }
 
   @UseGuards(JwtAuthGuard)

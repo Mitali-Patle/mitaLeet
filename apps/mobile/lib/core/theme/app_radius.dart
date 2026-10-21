@@ -13,8 +13,8 @@ abstract final class AppRadius {
   static const double full = 999;
 
   // ── Convenience BorderRadius ───────────────────────────────────────
-  static final BorderRadius cardRadius = BorderRadius.circular(md);
-  static final BorderRadius buttonRadius = BorderRadius.circular(sm);
-  static final BorderRadius chipRadius = BorderRadius.circular(xs);
+  static final BorderRadius cardRadius = BorderRadius.circular(xl);
+  static final BorderRadius buttonRadius = BorderRadius.circular(lg);
+  static final BorderRadius chipRadius = BorderRadius.circular(md);
   static final BorderRadius circularRadius = BorderRadius.circular(full);
 }

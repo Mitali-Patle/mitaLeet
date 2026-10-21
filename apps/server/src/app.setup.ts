@@ -1,0 +1,108 @@
+import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { ConfigService } from '@nestjs/config';
+import helmet from 'helmet';
+import { randomUUID } from 'crypto';
+import { isIP } from 'net';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+
+/**
+ * Global HTTP setup shared by the real server (main.ts) and the e2e tests,
+ * so tests exercise exactly the same middleware, prefix, pipes and filters.
+ */
+export function configureApp(app: INestApplication): void {
+  const config = app.get(ConfigService);
+
+  // Behind Render/Cloudflare the client IP arrives in X-Forwarded-For; trust that
+  // many proxy hops so rate limits and logs see real client IPs.
+  (app as NestExpressApplication).set('trust proxy', Number(config.get('TRUST_PROXY_HOPS', 1)));
+
+  // Client IP for rate limiting and logs. Behind Cloudflare (all *.onrender.com
+  // traffic) set CLIENT_IP_HEADER=cf-connecting-ip: Cloudflare overwrites that
+  // header with the real client IP, so clients cannot forge it. Counting proxy
+  // hops (trust proxy) proved unreliable on Render. Leave it unset on hosts
+  // without such a proxy, where any client could send the header.
+  const clientIpHeader = config.get<string>('CLIENT_IP_HEADER', '').trim().toLowerCase();
+  app.use((req: any, _res: any, next: () => void) => {
+    const fromHeader = clientIpHeader ? String(req.headers[clientIpHeader] ?? '').split(',')[0].trim() : '';
+    req.clientIp = fromHeader && isIP(fromHeader) ? fromHeader : req.ip;
+    next();
+  });
+
+  // Request ID: accept a sane incoming X-Request-Id (e.g. from a proxy) or
+  // create one; echoed in the response and in every log line for the request.
+  app.use((req: any, res: any, next: () => void) => {
+    const incoming = req.headers['x-request-id'];
+    req.id = typeof incoming === 'string' && /^[A-Za-z0-9._-]{8,64}$/.test(incoming) ? incoming : randomUUID();
+    res.setHeader('X-Request-Id', req.id);
+    next();
+  });
+
+  // Security
+  app.use(helmet());
+
+  const isDev = config.get<string>('NODE_ENV', 'development') !== 'production';
+
+  // Build the origin allowlist. In dev every localhost variant is allowed;
+  // in production the list comes from the CORS_ORIGINS env var.
+  const prodOrigins = config
+    .get<string>('CORS_ORIGINS', '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  const devOrigins = [
+    'http://localhost:3000',
+    'http://localhost:4200',
+    'http://localhost:8080',
+    'http://127.0.0.1:3000',
+    'capacitor://localhost',
+    'ionic://localhost',
+  ];
+
+  const allowedOrigins = isDev ? devOrigins : prodOrigins;
+
+  console.log(`[CORS] mode=${isDev ? 'dev' : 'prod'} origins=${JSON.stringify(allowedOrigins)}`);
+
+  app.enableCors({
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      // No origin = mobile app / curl / Postman — always allow
+      if (!origin) return callback(null, true);
+      // In dev also allow any localhost port
+      if (isDev && (origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1'))) {
+        return callback(null, true);
+      }
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.warn(`[CORS] blocked origin: ${origin}`);
+      callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+  // API prefix + versioning (health checks stay at /health for the platform)
+  app.setGlobalPrefix('api/v1', { exclude: ['health', 'health/live'] });
+
+  // Global pipes
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
+
+  // Global filters & interceptors
+  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),
+    new TransformInterceptor(),
+  );
+}

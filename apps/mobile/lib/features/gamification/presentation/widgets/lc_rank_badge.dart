@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
 enum BadgeSize { small, medium, large }
 
 /// Tactical rank badge widget.
+/// Server rank ids (INITIATE, OPERATOR, ...) as shown to people.
+String rankDisplayName(String rank) =>
+    rank.isEmpty ? rank : rank[0].toUpperCase() + rank.substring(1).toLowerCase();
+
 class LCRankBadge extends StatelessWidget {
   const LCRankBadge({super.key, required this.rank, this.size = BadgeSize.medium});
 
@@ -12,12 +15,12 @@ class LCRankBadge extends StatelessWidget {
   final BadgeSize size;
 
   static const _rankMeta = {
-    'INITIATE':   _RankMeta(label: 'INIT', color: Color(0xFF6E6E78)),
-    'OPERATOR':   _RankMeta(label: 'OPR', color: Color(0xFF6EC8D4)),
-    'SPECIALIST': _RankMeta(label: 'SPEC', color: Color(0xFF4BA8B4)),
-    'ELITE':      _RankMeta(label: 'ELITE', color: Color(0xFFD4A843)),
-    'TITAN':      _RankMeta(label: 'TTN', color: Color(0xFFC4642A)),
-    'APEX':       _RankMeta(label: 'APEX', color: Color(0xFFB44FD4)),
+    'INITIATE':   _RankMeta(label: 'Initiate', color: Color(0xFF6E6E78)),
+    'OPERATOR':   _RankMeta(label: 'Operator', color: Color(0xFF6EC8D4)),
+    'SPECIALIST': _RankMeta(label: 'Specialist', color: Color(0xFF4BA8B4)),
+    'ELITE':      _RankMeta(label: 'Elite', color: Color(0xFFD4A843)),
+    'TITAN':      _RankMeta(label: 'Titan', color: Color(0xFFC4642A)),
+    'APEX':       _RankMeta(label: 'Apex', color: Color(0xFFB44FD4)),
   };
 
   @override

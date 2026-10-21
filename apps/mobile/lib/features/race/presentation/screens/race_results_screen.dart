@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/theme/phosphor_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -28,7 +29,7 @@ class RaceResultsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: AppSpacing.xl),
-            Text('FINAL RESULTS', style: AppTypography.tacticalLabel(color: AppColors.primary)),
+            Text('Final results', style: AppTypography.tacticalLabel(color: AppColors.primary)),
             const SizedBox(height: AppSpacing.sectionGap),
 
             ...sorted.map((r) {
@@ -80,7 +81,7 @@ class RaceResultsScreen extends StatelessWidget {
                                 const Icon(PhosphorIconsBold.checkCircle, size: 10, color: AppColors.success),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'ACCEPTED · ${_formatMs(ms)}',
+                                  'Accepted · ${_formatMs(ms)}',
                                   style: AppTypography.tacticalLabel(fontSize: 8, color: AppColors.success),
                                 ),
                               ],
@@ -101,13 +102,13 @@ class RaceResultsScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
+                onPressed: () => context.go('/races'),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.surfaceBorder),
                   shape: RoundedRectangleBorder(borderRadius: AppRadius.cardRadius),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text('BACK TO HOME',
+                child: Text('Back to home',
                     style: AppTypography.tacticalLabel(color: AppColors.onSurfaceMedium)),
               ),
             ),
